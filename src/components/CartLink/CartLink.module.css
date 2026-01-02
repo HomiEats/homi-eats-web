@@ -1,0 +1,60 @@
+@import '../../styles/customMediaQueries.css';
+
+.cartLink {
+  position: fixed;
+  bottom: 40px;
+  right: 20px;
+  z-index: 10;
+  background-color: var(--colorWhite);
+  padding: 10px;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
+  @media (--viewportMedium) {
+    display: initial;
+    position: relative;
+    background-color: transparent;
+    padding: 0;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    bottom: 0 !important;
+    right: 0 !important;
+  }
+}
+
+.cartLinkFixedActionBar {
+  bottom: 110px;
+}
+
+.cartIcon {
+  stroke: var(--marketplaceColor) !important;
+}
+
+.cartBadge {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  background-color: var(--marketplaceColor);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  @media (--viewportMedium) {
+    top: 10px;
+    right: 0px;
+  }
+}

@@ -279,3 +279,9 @@
     margin: 0;
   }
 }
+
+.cartLink {
+  @media (--viewportMedium) {
+    display: none;
+  }
+}

@@ -74,6 +74,8 @@ import {
 } from './TransactionPage.duck';
 import css from './TransactionPage.module.css';
 import { getCurrentUserTypeRoles, hasPermissionToViewData } from '../../util/userHelpers.js';
+import { handleAddToCart } from '../ListingPage/ListingPage.shared.js';
+import useAddOrUpdateToCart from '../../hooks/useAddOrUpdateToCart.js';
 
 const MAX_MOBILE_SCREEN_WIDTH = 1023;
 
@@ -304,6 +306,7 @@ export const TransactionPageComponent = props => {
     nextTransitions,
     callSetInitialValues,
     onInitializeCardPaymentData,
+    transactionListings,
     ...restOfProps
   } = props;
 
@@ -407,6 +410,16 @@ export const TransactionPageComponent = props => {
     const seatsMaybe = Number.isInteger(seats) ? { seats } : {};
     const deliveryMethodMaybe = deliveryMethod ? { deliveryMethod } : {};
 
+    const orderedProducts = {
+      authorId: listing.author.id.uuid,
+      deliveryMethod: values.deliveryMethod,
+      listings: {
+        [listing.id.uuid]: {
+          quantity: values.quantity,
+        },
+      },
+    };
+
     const initialValues = {
       listing,
       // inquired transaction should be passed to CheckoutPage
@@ -418,6 +431,7 @@ export const TransactionPageComponent = props => {
         ...seatsMaybe,
         ...deliveryMethodMaybe,
         ...otherOrderData,
+        orderedProducts,
       },
       confirmPaymentError: null,
     };
@@ -619,6 +633,25 @@ export const TransactionPageComponent = props => {
 
   const hasViewingRights = currentUser && hasPermissionToViewData(currentUser);
 
+  const {
+    addOrUpdateToCart,
+    addOrUpdateToCartError,
+    addOrUpdateToCartInProgress,
+    cart,
+  } = useAddOrUpdateToCart();
+
+  const commonParams = { params, history, routes: routeConfiguration };
+
+  const onAddOrUpdateToCart = values =>
+    handleAddToCart({
+      ...commonParams,
+      location,
+      currentUser,
+      addOrUpdateToCart,
+      listingId: listing.id.uuid,
+      authorId: provider.id.uuid,
+    })(values);
+
   const txBookingMaybe = booking?.id ? { booking, timeZone } : {};
   const orderBreakdownMaybe = hasLineItems
     ? {
@@ -649,7 +682,7 @@ export const TransactionPageComponent = props => {
     mounted && hasMatchMedia
       ? window.matchMedia(`(max-width: ${MAX_MOBILE_SCREEN_WIDTH}px)`)?.matches
       : true;
-
+  console.log({ provider, listing });
   const actionButtonContainer = isMobile ? 'mobile' : 'desktop';
   // TransactionPanel is presentational component
   // that currently handles showing everything inside layout's main view area.
@@ -676,6 +709,7 @@ export const TransactionPageComponent = props => {
       showBookingLocation={showBookingLocation}
       hasViewingRights={hasViewingRights}
       showListingImage={showListingImage}
+      transactionListings={transactionListings}
       actionButtons={containerId => (
         <ActionButtons
           containerId={containerId}
@@ -727,9 +761,7 @@ export const TransactionPageComponent = props => {
       {...orderBreakdownMaybe}
       orderPanel={
         <OrderPanel
-          className={classNames(css.orderPanel, {
-            [css.orderPanelNextToTitle]: stateData.showDetailCardHeadings,
-          })}
+          className={css.orderPanel}
           titleClassName={css.orderTitle}
           listing={listing}
           isOwnListing={isOwnSale}
@@ -742,21 +774,31 @@ export const TransactionPageComponent = props => {
               ) : (
                 <NamedLink
                   name="ListingPage"
-                  params={{ id: listing.id?.uuid, slug: createSlug(listingTitle) }}
+                  params={{
+                    id: listing.id?.uuid,
+                    slug: createSlug(listingTitle),
+                  }}
                 >
                   {listingTitle}
                 </NamedLink>
               )}
             </H4>
           }
-          author={listing.author}
-          onSubmit={isNegotiationProcess ? onMakeOffer : handleSubmitOrderRequest}
+          onSubmit={handleSubmitOrderRequest}
           onManageDisableScrolling={onManageDisableScrolling}
           {...restOfProps}
           validListingTypes={config.listing.listingTypes}
           marketplaceCurrency={config.currency}
           dayCountAvailableForBooking={config.stripe.dayCountAvailableForBooking}
           marketplaceName={config.marketplaceName}
+          cartProps={{
+            onAddOrUpdateToCart,
+            cart,
+            addOrUpdateToCartInProgress,
+            addOrUpdateToCartError,
+            authorId: provider.id,
+            listingId: listing.id,
+          }}
         />
       }
     />
@@ -908,6 +950,11 @@ const mapStateToProps = state => {
     fetchLineItemsError,
   } = state.TransactionPage;
   const { currentUser } = state.user;
+  const { queryTransactionListingsIds } = state.CheckoutPage;
+  const transactionListings = getMarketplaceEntities(
+    state,
+    queryTransactionListingsIds.map(id => ({ id, type: 'listing' }))
+  );
 
   const transactions = getMarketplaceEntities(state, transactionRef ? [transactionRef] : []);
   const transaction = transactions.length > 0 ? transactions[0] : null;
@@ -936,6 +983,7 @@ const mapStateToProps = state => {
     lineItems, // for OrderPanel
     fetchLineItemsInProgress, // for OrderPanel
     fetchLineItemsError, // for OrderPanel
+    transactionListings,
   };
 };
 

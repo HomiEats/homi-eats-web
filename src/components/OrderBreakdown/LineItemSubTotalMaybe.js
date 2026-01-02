@@ -85,7 +85,6 @@ const LineItemSubTotalMaybe = props => {
 
   return formattedSubTotal && showSubTotal ? (
     <>
-      <hr className={css.totalDivider} />
       <div className={css.subTotalLineItem}>
         <span className={css.itemLabel}>
           <FormattedMessage id="OrderBreakdown.subTotal" />

@@ -26,6 +26,7 @@ import {
 
 import { addMarketplaceEntities } from '../../ducks/marketplaceData.duck';
 import { fetchCurrentUserNotifications } from '../../ducks/user.duck';
+import { queryTransactionListingsThunk } from '../CheckoutPage/CheckoutPage.duck';
 
 const { UUID } = sdkTypes;
 
@@ -281,6 +282,11 @@ const fetchTransactionPayloadCreator = (
 
         if (canFetchTimeslots) {
           fetchMonthlyTimeSlots(dispatch, listing);
+        }
+
+        const orderedProducts = transaction?.attributes?.protectedData?.orderedProducts;
+        if (orderedProducts) {
+          dispatch(queryTransactionListingsThunk(orderedProducts));
         }
       } catch (error) {
         console.log(`transaction process (${processName}) was not recognized`);

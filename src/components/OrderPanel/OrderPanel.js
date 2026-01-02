@@ -135,7 +135,7 @@ const handleSubmit = (isOwnListing, isClosed, isDirectSubmit, onSubmit, history,
 
 const dateFormattingOptions = { month: 'short', day: 'numeric', weekday: 'short' };
 
-const PriceMaybe = props => {
+export const PriceMaybe = props => {
   const {
     price,
     publicData,
@@ -266,7 +266,13 @@ const hasValidPriceVariants = priceVariants => {
  * @param {string} props.marketplaceCurrency - The currency used in the marketplace
  * @param {number} props.dayCountAvailableForBooking - Number of days available for booking
  * @param {string} props.marketplaceName - Name of the marketplace
- *
+ * @param {Object} props.cartProps - Cart properties
+ * @param {Function} props.cartProps.onAddOrUpdateToCart - Handler for adding or updating to cart
+ * @param {Object} props.cartProps.cart - Cart object
+ * @param {boolean} props.cartProps.addOrUpdateToCartInProgress - Whether add or update to cart is in progress
+ * @param {Object} props.cartProps.addOrUpdateToCartError - Error object if add or update to cart failed
+ * @param {string} props.cartProps.listingId - Listing ID
+ * @param {string} props.cartProps.authorId - Author ID
  * @returns {JSX.Element} Component that displays the order panel with appropriate form
  */
 const OrderPanel = props => {
@@ -305,6 +311,8 @@ const OrderPanel = props => {
     fetchLineItemsError,
     payoutDetailsWarning,
     showListingImage,
+    cartProps,
+    showAuthor,
   } = props;
 
   const publicData = listing?.attributes?.publicData || {};
@@ -459,15 +467,17 @@ const OrderPanel = props => {
           marketplaceCurrency={marketplaceCurrency}
         />
 
-        <div className={css.author}>
-          <AvatarSmall user={author} className={css.providerAvatar} />
-          <span className={css.providerNameLinked}>
-            <FormattedMessage id="OrderPanel.author" values={{ name: authorLink }} />
-          </span>
-          <span className={css.providerNamePlain}>
-            <FormattedMessage id="OrderPanel.author" values={{ name: authorDisplayName }} />
-          </span>
-        </div>
+        {showAuthor ? (
+          <div className={css.author}>
+            <AvatarSmall user={author} className={css.providerAvatar} />
+            <span className={css.providerNameLinked}>
+              <FormattedMessage id="OrderPanel.author" values={{ name: authorLink }} />
+            </span>
+            <span className={css.providerNamePlain}>
+              <FormattedMessage id="OrderPanel.author" values={{ name: authorDisplayName }} />
+            </span>
+          </div>
+        ) : null}
 
         {showPriceMissing ? (
           <PriceMissing />
@@ -530,6 +540,7 @@ const OrderPanel = props => {
             displayDeliveryMethod={displayPickup || displayShipping}
             onContactUser={onContactUser}
             {...sharedProps}
+            {...cartProps}
           />
         ) : showInquiryForm ? (
           <InquiryWithoutPaymentForm

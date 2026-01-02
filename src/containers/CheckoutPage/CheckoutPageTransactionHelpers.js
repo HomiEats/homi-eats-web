@@ -194,6 +194,8 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
     sessionStorageKey,
     stripeCustomer,
     stripePaymentMethodId,
+    onConfirmStock,
+    onClearCart,
   } = extraPaymentParams;
   const storedTx = ensureTransaction(pageData.transaction);
 
@@ -304,7 +306,32 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
   };
 
   //////////////////////////////////
-  // Step 4: send initial message //
+  // Step 4: confirm stock         //
+  // by confirming stock reservation against Marketplace API //
+  //////////////////////////////////
+
+  const fnConfirmStockMaybe = async fnParams => {
+    const order = fnParams;
+    if (
+      order.attributes.protectedData.orderedProducts &&
+      !order.attributes.metadata.childrenTransactionStockConfirmed
+    ) {
+      await onConfirmStock(order.id.uuid);
+    }
+    return fnParams;
+  };
+
+  const fnClearAuthorCartMaybe = async order => {
+    if (order.attributes.protectedData.orderedProducts && order.attributes.protectedData.fromCart) {
+      const providerId = order?.relationships?.provider?.data?.id?.uuid;
+      const deliveryMethod = order.attributes.protectedData?.orderedProducts?.deliveryMethod;
+      await onClearCart(providerId, deliveryMethod);
+    }
+    return order;
+  };
+
+  //////////////////////////////////
+  // Step 5: send initial message //
   //////////////////////////////////
   const fnSendMessage = fnParams => {
     const orderId = fnParams?.id;
@@ -312,7 +339,7 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
   };
 
   //////////////////////////////////////////////////////////
-  // Step 5: optionally save card as defaultPaymentMethod //
+  // Step 6: optionally save card as defaultPaymentMethod //
   //////////////////////////////////////////////////////////
   const fnSavePaymentMethod = fnParams => {
     const pi = createdPaymentIntent || paymentIntent;
@@ -345,6 +372,8 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
     fnRequestPayment,
     fnConfirmCardPayment,
     fnConfirmPayment,
+    fnConfirmStockMaybe,
+    fnClearAuthorCartMaybe,
     fnSendMessage,
     fnSavePaymentMethod
   );

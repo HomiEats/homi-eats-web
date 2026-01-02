@@ -386,6 +386,11 @@ const listingPageSlice = createSlice({
     setInitialValues: (state, action) => {
       return { ...initialState, ...action.payload };
     },
+    resetLineItems: state => {
+      state.lineItems = null;
+      state.fetchLineItemsError = null;
+      state.fetchLineItemsInProgress = false;
+    },
   },
   extraReducers: builder => {
     builder
@@ -499,7 +504,7 @@ const listingPageSlice = createSlice({
   },
 });
 
-export const { setInitialValues } = listingPageSlice.actions;
+export const { setInitialValues, resetLineItems } = listingPageSlice.actions;
 
 export default listingPageSlice.reducer;
 

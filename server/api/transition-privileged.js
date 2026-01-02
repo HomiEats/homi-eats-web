@@ -1,5 +1,5 @@
 const sharetribeSdk = require('sharetribe-flex-sdk');
-const { transactionLineItems } = require('../api-util/lineItems');
+const { transactionLineItems, formatLineItems } = require('../api-util/lineItems');
 const {
   addOfferToMetadata,
   getAmountFromPreviousOffer,
@@ -15,16 +15,13 @@ const {
   serialize,
   fetchCommission,
 } = require('../api-util/sdk');
+const { denormalisedResponseEntities } = require('../api-util/format');
+const { ShippingServices } = require('../services');
+const { createStockReservationTransactions } = require('../api-util/transactionHelpers');
 
 const { Money } = sharetribeSdk.types;
 
 const transactionPromise = (sdk, id) => sdk.transactions.show({ id, include: ['listing'] });
-const getListingRelationShip = transactionShowAPIData => {
-  const { data, included } = transactionShowAPIData;
-  const { relationships } = data;
-  const { listing: listingRef } = relationships;
-  return included.find(i => i.id.uuid === listingRef.data.id.uuid);
-};
 
 const getFullOrderData = (orderData, bodyParams, currency, offers) => {
   const { offerInSubunits } = orderData || {};
@@ -70,7 +67,7 @@ const getUpdatedMetadata = (orderData, transition, existingMetadata) => {
     : addOfferToMetadata(existingMetadata, null);
 };
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   const { isSpeculative, orderData, bodyParams, queryParams } = req.body;
 
   const sdk = getSdk(req, res);
@@ -78,72 +75,84 @@ module.exports = (req, res) => {
   let lineItems = null;
   let metadataMaybe = {};
 
-  Promise.all([transactionPromise(sdk, bodyParams?.id), fetchCommission(sdk)])
-    .then(responses => {
-      const [showTransactionResponse, fetchAssetsResponse] = responses;
-      const transaction = showTransactionResponse.data.data;
-      const listing = getListingRelationShip(showTransactionResponse.data);
-      const commissionAsset = fetchAssetsResponse.data.data[0];
+  try {
+    const [showTransactionResponse, fetchAssetsResponse] = await Promise.all([
+      transactionPromise(sdk, bodyParams?.id),
+      fetchCommission(sdk),
+    ]);
 
-      const existingMetadata = transaction?.attributes?.metadata;
-      const existingOffers = existingMetadata?.offers || [];
-      const transitions = transaction.attributes.transitions;
+    const transaction = denormalisedResponseEntities(showTransactionResponse)[0];
+    const listing = transaction.listing;
+    const commissionAsset = fetchAssetsResponse.data.data[0];
 
-      // Check if the transition is related to negotiation offers and if the offers are valid
-      throwErrorIfNegotiationOfferHasInvalidHistory(transitionName, existingOffers, transitions);
+    const existingMetadata = transaction?.attributes?.metadata;
+    const existingOffers = existingMetadata?.offers || [];
+    const transitions = transaction.attributes.transitions;
 
-      const currency =
-        transaction.attributes.payinTotal?.currency ||
-        listing.attributes.price?.currency ||
-        orderData.currency;
-      const { providerCommission, customerCommission } =
-        commissionAsset?.type === 'jsonAsset' ? commissionAsset.attributes.data : {};
+    // Check if the transition is related to negotiation offers and if the offers are valid
+    throwErrorIfNegotiationOfferHasInvalidHistory(transitionName, existingOffers, transitions);
 
-      lineItems = transactionLineItems(
-        listing,
-        getFullOrderData(orderData, bodyParams, currency, existingOffers),
-        providerCommission,
-        customerCommission
-      );
+    const currency =
+      transaction.attributes.payinTotal?.currency ||
+      listing.attributes.price?.currency ||
+      orderData.currency;
+    const { providerCommission, customerCommission } =
+      commissionAsset?.type === 'jsonAsset' ? commissionAsset.attributes.data : {};
 
-      metadataMaybe = getUpdatedMetadata(orderData, transitionName, existingMetadata);
+    lineItems = transactionLineItems(
+      [listing],
+      getFullOrderData(orderData, bodyParams, currency, existingOffers),
+      providerCommission,
+      customerCommission
+    );
 
-      return getTrustedSdk(req);
-    })
-    .then(trustedSdk => {
-      // Omit listingId from params (transition/request-payment-after-inquiry does not need it)
-      const { listingId, ...restParams } = bodyParams?.params || {};
+    metadataMaybe = getUpdatedMetadata(orderData, transitionName, existingMetadata);
 
-      // Add lineItems to the body params
-      const body = {
-        ...bodyParams,
-        params: {
-          ...restParams,
-          lineItems,
-          ...metadataMaybe,
+    const trustedSdk = await getTrustedSdk(req);
+
+    // Omit listingId from params (transition/request-payment-after-inquiry does not need it)
+    const { listingId, ...restParams } = bodyParams?.params || {};
+
+    // Add lineItems to the body params
+    const body = {
+      ...bodyParams,
+      params: {
+        ...restParams,
+        lineItems,
+        ...metadataMaybe,
+        protectedData: {
+          ...restParams.protectedData,
+          formattedLineItems: formatLineItems(lineItems, [listing]),
         },
-      };
+      },
+    };
 
-      if (isSpeculative) {
-        return trustedSdk.transactions.transitionSpeculative(body, queryParams);
-      }
-      return trustedSdk.transactions.transition(body, queryParams);
-    })
-    .then(apiResponse => {
-      const { status, statusText, data } = apiResponse;
-      res
-        .status(status)
-        .set('Content-Type', 'application/transit+json')
-        .send(
-          serialize({
-            status,
-            statusText,
-            data,
-          })
-        )
-        .end();
-    })
-    .catch(e => {
-      handleError(res, e);
-    });
+    let apiResponse = isSpeculative
+      ? await trustedSdk.transactions.transitionSpeculative(body, queryParams)
+      : await trustedSdk.transactions.transition(body, queryParams);
+
+    if (orderData.orderedProducts && !isSpeculative) {
+      const [tx] = denormalisedResponseEntities(apiResponse);
+      apiResponse = await createStockReservationTransactions({
+        tx,
+        sdk: trustedSdk,
+        queryParams,
+      });
+    }
+
+    const { status, statusText, data } = apiResponse;
+    res
+      .status(status)
+      .set('Content-Type', 'application/transit+json')
+      .send(
+        serialize({
+          status,
+          statusText,
+          data,
+        })
+      )
+      .end();
+  } catch (e) {
+    handleError(res, e);
+  }
 };

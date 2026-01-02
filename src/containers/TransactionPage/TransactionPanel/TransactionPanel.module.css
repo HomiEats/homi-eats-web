@@ -11,13 +11,13 @@
 
   @media (--viewportLarge) {
     flex-direction: row;
-    max-width: calc(var(--contentMaxWidth) + 72px);
+    max-width: calc(var(--contentMaxWidth) + 400px);
     margin: 0 auto 57px auto;
     padding: 0 36px;
   }
 
   @media (--viewportXLarge) {
-    max-width: var(--contentMaxWidth);
+    max-width: calc(var(--contentMaxWidth) + 300px);
     padding: 0;
   }
 }
@@ -248,7 +248,7 @@
   @media (--viewportLarge) {
     position: sticky;
     top: -200px; /* This is a hack to showcase how the component would look when the image isn't sticky */
-    width: 409px;
+    width: 509px;
     z-index: 1;
 
     &.noListingImage {
@@ -523,4 +523,34 @@
     padding: 0px 75px;
     margin-top: 16px;
   }
+}
+
+.cartDetailsSideCard {
+  width: 100% !important;
+  border: none !important;
+}
+
+.cartDetailsDesktop {
+  display: none !important;
+  width: 100% !important;
+  border: none !important;
+
+  @media (--viewportLarge) {
+    display: flex !important;
+  }
+}
+
+.cartDetailsMobile {
+  display: flex !important;
+
+  @media (--viewportLarge) {
+    display: none !important;
+  }
+}
+
+.shippingLabelLinkContainer {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+  padding-left: 13px;
 }

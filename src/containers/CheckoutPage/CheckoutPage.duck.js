@@ -1,10 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import pick from 'lodash/pick';
-import { initiatePrivileged, transitionPrivileged } from '../../util/api';
+import { confirmStock, initiatePrivileged, transitionPrivileged } from '../../util/api';
 import { denormalisedResponseEntities } from '../../util/data';
 import { storableError } from '../../util/errors';
 import * as log from '../../util/log';
 import { setCurrentUserHasOrders, fetchCurrentUser } from '../../ducks/user.duck';
+import { retrieveListingIdsOrderedProducts } from '../../util/cart';
+import { addMarketplaceEntities } from '../../ducks/marketplaceData.duck';
 
 // ================ Async thunks ================ //
 
@@ -18,12 +20,24 @@ const initiateOrderPayloadCreator = (
   // If we already have a transaction ID, we should transition, not initiate.
   const isTransition = !!transactionId;
 
-  const { deliveryMethod, quantity, bookingDates, ...otherOrderParams } = orderParams;
+  const {
+    deliveryMethod,
+    quantity,
+    bookingDates,
+    orderedProducts,
+    fromCart,
+    ...otherOrderParams
+  } = orderParams;
   const quantityMaybe = quantity ? { stockReservationQuantity: quantity } : {};
   const bookingParamsMaybe = bookingDates || {};
-
+  const orderedProductsMaybe = orderedProducts ? { orderedProducts } : {};
+  const fromCartMaybe = fromCart ? { fromCart } : {};
   // Parameters only for client app's server
-  const orderData = deliveryMethod ? { deliveryMethod } : {};
+  const orderData = {
+    ...(deliveryMethod ? { deliveryMethod } : {}),
+    ...orderedProductsMaybe,
+    ...fromCartMaybe,
+  };
 
   // Parameters for Marketplace API
   const transitionParams = {
@@ -291,15 +305,20 @@ const speculateTransactionPayloadCreator = (
     priceVariantName,
     quantity,
     bookingDates,
+    orderedProducts,
+    fromCart,
     ...otherOrderParams
   } = orderParams;
   const quantityMaybe = quantity ? { stockReservationQuantity: quantity } : {};
   const bookingParamsMaybe = bookingDates || {};
-
+  const orderedProductsMaybe = orderedProducts ? { orderedProducts } : {};
+  const fromCartMaybe = fromCart ? { fromCart } : {};
   // Parameters only for client app's server
   const orderData = {
     ...(deliveryMethod ? { deliveryMethod } : {}),
     ...(priceVariantName ? { priceVariantName } : {}),
+    ...orderedProductsMaybe,
+    ...fromCartMaybe,
   };
 
   // Parameters for Marketplace API
@@ -346,6 +365,9 @@ const speculateTransactionPayloadCreator = (
     });
     return rejectWithValue(storableError(e));
   };
+  if (orderedProducts) {
+    dispatch(queryTransactionListingsThunk(orderedProducts));
+  }
 
   if (isTransition && isPrivilegedTransition) {
     // transition privileged
@@ -415,6 +437,23 @@ const stripeCustomerPayloadCreator = ({}, { dispatch, rejectWithValue }) => {
     });
 };
 
+export const queryTransactionListingsThunk = createAsyncThunk(
+  'CheckoutPage/queryTransactionListings',
+  async (orderedProducts, { extra: sdk, dispatch }) => {
+    const listingIds = retrieveListingIdsOrderedProducts(orderedProducts);
+    const response = await sdk.listings.query(
+      { ids: listingIds, include: ['images', 'author', 'currentStock'] },
+      { expand: true }
+    );
+    const listings = denormalisedResponseEntities(response);
+    dispatch(addMarketplaceEntities(response));
+    return listings.map(listing => listing.id);
+  },
+  {
+    serializeError: storableError,
+  }
+);
+
 export const stripeCustomerThunk = createAsyncThunk(
   'CheckoutPage/stripeCustomer',
   stripeCustomerPayloadCreator
@@ -423,6 +462,16 @@ export const stripeCustomerThunk = createAsyncThunk(
 export const stripeCustomer = () => dispatch => {
   return dispatch(stripeCustomerThunk({})).unwrap();
 };
+
+export const confirmStockThunk = createAsyncThunk(
+  'CheckoutPage/confirmStock',
+  transactionId => {
+    return confirmStock({ txId: transactionId });
+  },
+  {
+    serializeError: storableError,
+  }
+);
 
 // ================ Slice ================ //
 
@@ -439,6 +488,10 @@ const initialState = {
   stripeCustomerFetched: false,
   initiateInquiryInProgress: false,
   initiateInquiryError: null,
+
+  queryTransactionListingsInProgress: false,
+  queryTransactionListingsError: null,
+  queryTransactionListingsIds: [],
 };
 
 const checkoutPageSlice = createSlice({
@@ -516,6 +569,20 @@ const checkoutPageSlice = createSlice({
       .addCase(initiateInquiryThunk.rejected, (state, action) => {
         state.initiateInquiryInProgress = false;
         state.initiateInquiryError = action.payload;
+      })
+      // Query Transaction Listings cases
+      .addCase(queryTransactionListingsThunk.pending, state => {
+        state.queryTransactionListingsInProgress = true;
+        state.queryTransactionListingsError = null;
+        state.queryTransactionListingsIds = [];
+      })
+      .addCase(queryTransactionListingsThunk.fulfilled, (state, action) => {
+        state.queryTransactionListingsInProgress = false;
+        state.queryTransactionListingsIds = action.payload;
+      })
+      .addCase(queryTransactionListingsThunk.rejected, (state, action) => {
+        state.queryTransactionListingsInProgress = false;
+        state.queryTransactionListingsError = action.payload;
       });
   },
 });

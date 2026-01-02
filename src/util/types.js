@@ -405,7 +405,8 @@ export const LINE_ITEM_CUSTOMER_COMMISSION = 'line-item/customer-commission';
 export const LINE_ITEM_PROVIDER_COMMISSION = 'line-item/provider-commission';
 export const LINE_ITEM_SHIPPING_FEE = 'line-item/shipping-fee';
 export const LINE_ITEM_PICKUP_FEE = 'line-item/pickup-fee';
-
+export const LINE_ITEM_PROMOTION_DISCOUNT = 'line-item/promotion-discount';
+export const LINE_ITEM_TAX = 'line-item/tax';
 export const LINE_ITEMS = [
   LINE_ITEM_NIGHT,
   LINE_ITEM_DAY,
@@ -418,6 +419,8 @@ export const LINE_ITEMS = [
   LINE_ITEM_PROVIDER_COMMISSION,
   LINE_ITEM_SHIPPING_FEE,
   LINE_ITEM_PICKUP_FEE,
+  LINE_ITEM_PROMOTION_DISCOUNT,
+  LINE_ITEM_TAX,
 ];
 export const LISTING_UNIT_TYPES = [
   LINE_ITEM_NIGHT,
@@ -427,6 +430,8 @@ export const LISTING_UNIT_TYPES = [
   LINE_ITEM_ITEM,
   LINE_ITEM_OFFER,
   LINE_ITEM_REQUEST,
+  LINE_ITEM_PROMOTION_DISCOUNT,
+  LINE_ITEM_TAX,
 ];
 
 propTypes.lineItemUnitType = oneOf(LISTING_UNIT_TYPES);

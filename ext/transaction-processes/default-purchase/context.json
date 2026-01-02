@@ -1,0 +1,340 @@
+{
+  "recipient": {
+    "id": "fd180cc2-a99c-4e43-b960-9b94daec5265",
+    "first-name": "Joe",
+    "last-name": "Dunphy",
+    "display-name": "Joe D",
+    "public-data": {
+      "phoneNumberVerified": true
+    },
+    "protected-data": {
+      "phoneNumber": "123456"
+    },
+    "private-data": {
+      "language": "en"
+    },
+    "metadata": {
+      "membership": "premium"
+    }
+  },
+  "recipient-role": "provider",
+  "other-party": {
+    "id": "ef7f40d5-da66-489a-957b-641313b68204",
+    "first-name": "Jane",
+    "last-name": "Pritchett",
+    "display-name": "Jane P",
+    "public-data": {
+      "phoneNumberVerified": true
+    },
+    "protected-data": {
+      "phoneNumber": "789101112"
+    },
+    "private-data": {
+      "language": "fr"
+    },
+    "metadata": {
+      "membership": "standard"
+    }
+  },
+  "marketplace": {
+    "name": "Bikesoil",
+    "url": "https://www.sharetribe.com"
+  },
+  "transaction": {
+    "booking": {
+      "start": {
+        "year": 2017,
+        "month": 12,
+        "day": 1,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+        "milliseconds": 0
+      },
+      "end": {
+        "year": 2017,
+        "month": 12,
+        "day": 12,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+        "milliseconds": 0
+      },
+      "displayStart": {
+        "year": 2017,
+        "month": 12,
+        "day": 1,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+        "milliseconds": 0
+      },
+      "displayEnd": {
+        "year": 2017,
+        "month": 12,
+        "day": 12,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+        "milliseconds": 0
+      },
+      "seats": 2,
+      "state": "accepted"
+    },
+    "stock-reservation": {
+      "state": "accepted",
+      "quantity": 2
+    },
+    "listing": {
+      "id": "d892dfe6-9407-4400-9e81-8100d7a87b7f",
+      "title": "Wooden sauna",
+      "private-data": {},
+      "public-data": {},
+      "metadata": {},
+      "availability-plan": {
+        "type": "availability-plan/time",
+        "timezone": "Europe/Helsinki"
+      },
+      "current-stock": {
+        "quantity": 10
+      }
+    },
+    "delayed-transition": {
+      "run-at": {
+        "year": 2017,
+        "month": 11,
+        "day": 29,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+        "milliseconds": 0
+      }
+    },
+    "payout-total": {
+      "amount": 810,
+      "currency": "USD"
+    },
+    "customer": {
+      "id": "ef7f40d5-da66-489a-957b-641313b68204",
+      "first-name": "Jane",
+      "last-name": "Pritchett",
+      "display-name": "Jane P",
+      "public-data": {
+        "phoneNumberVerified": true
+      },
+      "protected-data": {
+        "phoneNumber": "789101112"
+      },
+      "private-data": {
+        "language": "fr"
+      },
+      "metadata": {
+        "membership": "standard"
+      }
+    },
+    "payin-total": {
+      "amount": 18000,
+      "currency": "USD"
+    },
+    "id": "d8893061-c860-4e44-8d4d-61587a497e6e",
+    "reviews": [
+      {
+        "subject": {
+          "id": "ef7f40d5-da66-489a-957b-641313b68204",
+          "first-name": "Jane",
+          "last-name": "Pritchett",
+          "display-name": "Jane P",
+          "public-data": {
+            "phoneNumberVerified": true
+          },
+          "protected-data": {
+            "phoneNumber": "789101112"
+          },
+          "private-data": {
+            "language": "fr"
+          },
+          "metadata": {
+            "membership": "standard"
+          }
+        },
+        "content": "Well done, customer Jane P!"
+      },
+      {
+        "subject": {
+          "id": "fd180cc2-a99c-4e43-b960-9b94daec5265",
+          "first-name": "Joe",
+          "last-name": "Dunphy",
+          "display-name": "Joe D",
+          "public-data": {
+            "phoneNumberVerified": true
+          },
+          "protected-data": {
+            "phoneNumber": "123456"
+          },
+          "private-data": {
+            "language": "en"
+          },
+          "metadata": {
+            "membership": "premium"
+          }
+        },
+        "content": "Good job, provider Joe D!"
+      }
+    ],
+    "tx-line-items": [
+      {
+        "code": "line-item/item-68be9a5f-a8e2-4ce9-8567-8a8d30f21e8e-child-xs",
+        "unit-price": {
+          "amount": 300,
+          "currency": "USD"
+        },
+        "line-total": {
+          "amount": 900,
+          "currency": "USD"
+        },
+        "include-for": ["customer", "provider"],
+        "quantity": 3
+      },
+      {
+        "code": "line-item/item-68be9a5f-a8e2-4ce9-8567-8a8d30f21e8e-child-xxs",
+        "unit-price": {
+          "amount": 300,
+          "currency": "USD"
+        },
+        "line-total": {
+          "amount": 900,
+          "currency": "USD"
+        },
+        "include-for": ["customer", "provider"],
+        "quantity": 3
+      },
+      {
+        "code": "line-item/shipping-fee",
+        "unit-price": {
+          "amount": 900,
+          "currency": "USD"
+        },
+        "line-total": {
+          "amount": -90,
+          "currency": "USD"
+        },
+        "include-for": ["customer"],
+        "percentage": -10
+      },
+      {
+        "code": "line-item/provider-commission",
+        "unit-price": {
+          "amount": 900,
+          "currency": "USD"
+        },
+        "line-total": {
+          "amount": -90,
+          "currency": "USD"
+        },
+        "include-for": ["provider"],
+        "percentage": -10
+      },
+      {
+        "code": "line-item/tax-fee",
+        "unit-price": {
+          "amount": 13800,
+          "currency": "USD"
+        },
+        "line-total": {
+          "amount": 2070,
+          "currency": "USD"
+        },
+        "include-for": ["customer"],
+        "percentage": 15
+      }
+    ],
+    "provider": {
+      "id": "fd180cc2-a99c-4e43-b960-9b94daec5265",
+      "first-name": "Joe",
+      "last-name": "Dunphy",
+      "display-name": "Joe D",
+      "public-data": {
+        "phoneNumberVerified": true
+      },
+      "protected-data": {
+        "phoneNumber": "123456"
+      },
+      "private-data": {
+        "language": "en"
+      },
+      "metadata": {
+        "membership": "premium"
+      }
+    },
+    "protected-data": {
+      "formattedLineItems": [
+        {
+          "actualCode": "line-item/item-68be9a5f-a8e2-4ce9-8567-8a8d30f21e8e_child-xxs",
+          "code": "line-item/item",
+          "includeFor": ["customer", "provider"],
+          "lineTotalAmount": 6900,
+          "lineTotalCurrency": "USD",
+          "quantity": 3,
+          "title": "Shibalnom",
+          "unitPriceAmount": 2300,
+          "unitPriceCurrency": "USD"
+        },
+        {
+          "actualCode": "line-item/size_68be9a5f-a8e2-4ce9-8567-8a8d30f21e8e_child-xs",
+          "code": "line-item/item",
+          "includeFor": ["customer", "provider"],
+          "lineTotalAmount": 6900,
+          "lineTotalCurrency": "USD",
+          "quantity": 3,
+          "title": "Shibalnom",
+          "unitPriceAmount": 2300,
+          "unitPriceCurrency": "USD"
+        },
+        {
+          "code": "line-item/provider-commission",
+          "includeFor": ["provider"],
+          "lineTotalAmount": -2760,
+          "lineTotalCurrency": "USD",
+          "percentage": -20,
+          "title": "line-item/provider-commission",
+          "unitPriceAmount": 13800,
+          "unitPriceCurrency": "USD"
+        },
+        {
+          "code": "line-item/shipping-fee",
+          "includeFor": ["customer"],
+          "lineTotalAmount": 7656,
+          "lineTotalCurrency": "USD",
+          "quantity": 1,
+          "title": "line-item/shipping-fee",
+          "unitPriceAmount": 7656,
+          "unitPriceCurrency": "USD"
+        },
+        {
+          "actualCode": "line-item/HST-(15%)",
+          "code": "line-item/tax-fee",
+          "includeFor": ["customer"],
+          "lineTotalAmount": 2070,
+          "lineTotalCurrency": "USD",
+          "percentage": 15,
+          "title": "HST-(15%)",
+          "unitPriceAmount": 13800,
+          "unitPriceCurrency": "USD"
+        }
+      ],
+      "orderedSizeWithQuantities": {
+        "68be9a5f-a8e2-4ce9-8567-8a8d30f21e8e": {
+          "listingTitle": "Shibalnom",
+          "sizes": {
+            "child-xs": 2,
+            "child-xxs": 2
+          }
+        }
+      },
+      "unitType": "item"
+    },
+    "metadata": {
+      "discountCode": "abc-123"
+    }
+  }
+}

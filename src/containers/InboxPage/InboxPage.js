@@ -176,8 +176,8 @@ export const InboxItem = props => {
   const lineItems = tx.attributes?.lineItems;
   const hasPricingData = lineItems.length > 0;
   const unitLineItem = getUnitLineItem(lineItems);
-  const quantity = hasPricingData && isPurchase ? unitLineItem.quantity.toString() : null;
-  const showStock = stockType === STOCK_MULTIPLE_ITEMS || (quantity && unitLineItem.quantity > 1);
+  const quantity = hasPricingData && isPurchase ? unitLineItem?.quantity.toString() : null;
+  const showStock = stockType === STOCK_MULTIPLE_ITEMS || (quantity && unitLineItem?.quantity > 1);
   const otherUser = isCustomer ? provider : customer;
   const otherUserDisplayName = <UserDisplayName user={otherUser} intl={intl} />;
   const isOtherUserBanned = otherUser.attributes.banned;

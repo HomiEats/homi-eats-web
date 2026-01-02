@@ -244,6 +244,8 @@ export const handleSubmit = parameters => values => {
     quantity: quantityRaw,
     seats: seatsRaw,
     deliveryMethod,
+    orderedProducts,
+    fromCart,
     ...otherOrderData
   } = values;
 
@@ -269,7 +271,8 @@ export const handleSubmit = parameters => values => {
   const seats = Number.parseInt(seatsRaw, 10);
   const seatsMaybe = Number.isInteger(seats) ? { seats } : {};
   const deliveryMethodMaybe = deliveryMethod ? { deliveryMethod } : {};
-
+  const orderedProductsMaybe = orderedProducts ? { orderedProducts } : {};
+  const fromCartMaybe = fromCart ? { fromCart } : {};
   const initialValues = {
     listing,
     orderData: {
@@ -279,6 +282,8 @@ export const handleSubmit = parameters => values => {
       ...seatsMaybe,
       ...deliveryMethodMaybe,
       ...otherOrderData,
+      ...orderedProductsMaybe,
+      ...fromCartMaybe,
     },
     confirmPaymentError: null,
   };
@@ -355,4 +360,33 @@ export const LoadingPage = props => {
       </p>
     </PlainPage>
   );
+};
+
+export const handleAddToCart = parameters => value => {
+  const {
+    currentUser,
+    routes,
+    history,
+    location,
+    addOrUpdateToCart,
+    listingId,
+    authorId,
+    shouldSaveDefaultDeliveryAddress,
+  } = parameters;
+  const { deliveryMethod, quantity } = value;
+  if (currentUser === null) {
+    const state = {
+      from: `${location.pathname}${location.search}${location.hash}`,
+    };
+    history.push(createResourceLocatorString('LoginPage', routes, {}, {}), state);
+  } else {
+    return addOrUpdateToCart(
+      authorId,
+      listingId,
+      deliveryMethod,
+      quantity,
+      {},
+      shouldSaveDefaultDeliveryAddress
+    );
+  }
 };
