@@ -80,6 +80,12 @@ export const transitions = {
   EXPIRE_CUSTOMER_REVIEW_PERIOD: 'transition/expire-customer-review-period',
   EXPIRE_PROVIDER_REVIEW_PERIOD: 'transition/expire-provider-review-period',
   EXPIRE_REVIEW_PERIOD: 'transition/expire-review-period',
+
+  UPDATE_CHILD_TRANSACTIONS: 'transition/update-child-transactions',
+  OPERATOR_PENDING_PARTIAL_REFUND_FROM_DISPUTED:
+    'transition/operator-pending-partial-refund-from-disputed',
+  OPERATOR_MARK_RECEIVED_WITH_PARTIAL_REFUND:
+    'transition/operator-mark-received-with-partial-refund',
 };
 
 /**
@@ -106,6 +112,8 @@ export const states = {
   REVIEWED: 'reviewed',
   REVIEWED_BY_CUSTOMER: 'reviewed-by-customer',
   REVIEWED_BY_PROVIDER: 'reviewed-by-provider',
+  PENDING_UPDATE_CHILD_TRANSACTIONS: 'pending-update-child-transactions',
+  PENDING_PARTIAL_REFUND: 'pending-partial-refund',
 };
 
 /**
@@ -131,12 +139,18 @@ export const graph = {
     [states.INITIAL]: {
       on: {
         [transitions.INQUIRE]: states.INQUIRY,
-        [transitions.REQUEST_PAYMENT]: states.PENDING_PAYMENT,
+        [transitions.REQUEST_PAYMENT]: states.PENDING_UPDATE_CHILD_TRANSACTIONS,
       },
     },
     [states.INQUIRY]: {
       on: {
-        [transitions.REQUEST_PAYMENT_AFTER_INQUIRY]: states.PENDING_PAYMENT,
+        [transitions.REQUEST_PAYMENT_AFTER_INQUIRY]: states.PENDING_UPDATE_CHILD_TRANSACTIONS,
+      },
+    },
+
+    [states.PENDING_UPDATE_CHILD_TRANSACTIONS]: {
+      on: {
+        [transitions.UPDATE_CHILD_TRANSACTIONS]: states.PENDING_PAYMENT,
       },
     },
 
@@ -174,6 +188,12 @@ export const graph = {
         [transitions.AUTO_CANCEL_FROM_DISPUTED]: states.CANCELED,
         [transitions.CANCEL_FROM_DISPUTED]: states.CANCELED,
         [transitions.MARK_RECEIVED_FROM_DISPUTED]: states.RECEIVED,
+        [transitions.OPERATOR_PENDING_PARTIAL_REFUND_FROM_DISPUTED]: states.PENDING_PARTIAL_REFUND,
+      },
+    },
+    [states.PENDING_PARTIAL_REFUND]: {
+      on: {
+        [transitions.OPERATOR_MARK_RECEIVED_WITH_PARTIAL_REFUND]: states.RECEIVED,
       },
     },
 

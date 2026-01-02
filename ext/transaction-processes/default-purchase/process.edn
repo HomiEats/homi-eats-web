@@ -9,25 +9,28 @@
    :privileged? true,
    :actions
    [{:name :action/update-protected-data}
-    {:name :action/create-pending-stock-reservation}
     {:name :action/privileged-set-line-items}
     {:name :action/stripe-create-payment-intent}],
-   :to :state/pending-payment}
+   :to :state/pending-update-child-transactions}
   {:name :transition/request-payment-after-inquiry,
    :actor :actor.role/customer,
    :privileged? true,
    :actions
    [{:name :action/update-protected-data}
-    {:name :action/create-pending-stock-reservation}
     {:name :action/privileged-set-line-items}
     {:name :action/stripe-create-payment-intent}],
    :from :state/inquiry,
+   :to :state/pending-update-child-transactions}
+  {:name :transition/update-child-transactions,
+   :actor :actor.role/customer,
+   :actions
+   [{:name :action/update-protected-data}],
+   :from :state/pending-update-child-transactions
    :to :state/pending-payment}
   {:name :transition/confirm-payment,
    :actor :actor.role/customer,
    :actions
-   [{:name :action/accept-stock-reservation}
-    {:name :action/stripe-confirm-payment-intent}
+   [{:name :action/stripe-confirm-payment-intent}
     {:name :action/stripe-capture-payment-intent}],
    :from :state/pending-payment,
    :to :state/purchased}
@@ -38,10 +41,7 @@
      {:fn/period ["PT15M"]}]},
    :actions
    [{:name :action/calculate-full-refund}
-    {:name :action/stripe-refund-payment}
-    ;; Keep this action last in the list of actions for
-    ;; the transition
-    {:name :action/decline-stock-reservation}],
+    {:name :action/stripe-refund-payment}],
    :from :state/pending-payment,
    :to :state/payment-expired}
   {:name :transition/mark-received-from-purchased,
@@ -91,10 +91,7 @@
    :actor :actor.role/operator,
    :actions
    [{:name :action/calculate-full-refund}
-    {:name :action/stripe-refund-payment}
-    ;; Keep this action last in the list of actions for
-    ;; the transition
-    {:name :action/cancel-stock-reservation}],
+    {:name :action/stripe-refund-payment}],
    :from :state/purchased,
    :to :state/canceled}
   {:name :transition/auto-cancel,
@@ -104,20 +101,24 @@
      {:fn/period ["P14D"]}]},
    :actions
    [{:name :action/calculate-full-refund}
-    {:name :action/stripe-refund-payment}
-    ;; Keep this action last in the list of actions for
-    ;; the transition
-    {:name :action/cancel-stock-reservation}],
+    {:name :action/stripe-refund-payment}],
    :from :state/purchased,
    :to :state/canceled}
+  {:name :transition/operator-pending-partial-refund-from-disputed
+   :actor :actor.role/operator
+   :actions []
+   :from :state/disputed
+   :to :state/pending-partial-refund}
+  {:name :transition/operator-mark-received-with-partial-refund
+   :actor :actor.role/operator
+   :actions []
+   :from :state/pending-partial-refund
+   :to :state/received} 
   {:name :transition/cancel-from-disputed,
    :actor :actor.role/operator,
    :actions
    [{:name :action/calculate-full-refund}
-    {:name :action/stripe-refund-payment}
-    ;; Keep this action last in the list of actions for
-    ;; the transition
-    {:name :action/cancel-stock-reservation}],
+    {:name :action/stripe-refund-payment}],
    :from :state/disputed,
    :to :state/canceled}
   {:name :transition/auto-cancel-from-disputed,
@@ -127,10 +128,7 @@
      {:fn/period ["P60D"]}]},
    :actions
    [{:name :action/calculate-full-refund}
-    {:name :action/stripe-refund-payment}
-    ;; Keep this action last in the list of actions for
-    ;; the transition
-    {:name :action/cancel-stock-reservation}],
+    {:name :action/stripe-refund-payment}],
    :from :state/disputed,
    :to :state/canceled}
   {:name :transition/auto-complete,
@@ -283,6 +281,14 @@
    :on :transition/mark-received-from-disputed,
    :to :actor.role/provider,
    :template :purchase-order-received-from-disputed-provider}
+  {:name :notification/order-received-from-disputed-partial-refund-customer,
+   :on :transition/operator-mark-received-with-partial-refund,
+   :to :actor.role/customer,
+   :template :purchase-order-received-from-disputed-customer}
+  {:name :notification/order-received-from-disputed-partial-refund-provider,
+   :on :transition/operator-mark-received-with-partial-refund,
+   :to :actor.role/provider,
+   :template :purchase-order-received-from-disputed-provider} 
   {:name :notification/canceled-from-disputed-customer,
    :on :transition/cancel-from-disputed,
    :to :actor.role/customer,

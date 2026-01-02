@@ -1,0 +1,44 @@
+{:format :v3,
+ :transitions
+ [{:name :transition/reserve-stock,
+   :actor :actor.role/customer,
+   :actions
+   [{:name :action/update-protected-data}
+    {:name :action/create-pending-stock-reservation}],
+   :to :state/pending-stock}
+  {:name :transition/confirm-stock,
+   :actor :actor.role/customer
+   :actions 
+   [{:name :action/accept-stock-reservation}]
+   :from :state/pending-stock
+   :to :state/purchased}
+  {:name :transition/auto-expire-stock,
+   :actions [{:name :action/decline-stock-reservation}]
+   :at
+   {:fn/plus
+    [{:fn/timepoint [:time/first-entered-state :state/pending-stock]}
+     {:fn/period ["PT15M"]}]},
+   :from :state/pending-stock
+   :to :state/canceled}
+  {:name :transition/cancel-stock,
+   :actor :actor.role/operator,
+   :actions
+   [{:name :action/cancel-stock-reservation}],
+   :from :state/purchased,
+   :to :state/canceled}
+  {:name :transition/complete-stock,
+   :actor :actor.role/operator
+   :actions [] 
+   :from :state/purchased
+   :to :state/completed}
+  {:name :transition/auto-complete-stock,
+   :actions []
+   :at
+   {:fn/plus
+    [{:fn/timepoint [:time/first-entered-state :state/purchased]}
+     {:fn/period ["P60D"]}]},
+   :from :state/purchased
+   :to :state/completed}
+  ]
+ :notifications
+ []}
