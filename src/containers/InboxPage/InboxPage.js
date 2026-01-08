@@ -58,11 +58,11 @@ import { stateDataShape, getStateData } from './InboxPage.stateData';
 import css from './InboxPage.module.css';
 
 // Check if the transaction line-items use booking-related units
-const getUnitLineItem = lineItems => {
-  const unitLineItem = lineItems?.find(
-    item => LISTING_UNIT_TYPES.includes(item.code) && !item.reversal
+const getUnitLineItems = lineItems => {
+  const unitLineItems = lineItems?.filter(
+    item => LISTING_UNIT_TYPES.some(i => item.code.startsWith(i)) && !item.reversal
   );
-  return unitLineItem;
+  return unitLineItems;
 };
 
 // Booking data (start & end) are bit different depending on display times and
@@ -175,9 +175,13 @@ export const InboxItem = props => {
 
   const lineItems = tx.attributes?.lineItems;
   const hasPricingData = lineItems.length > 0;
-  const unitLineItem = getUnitLineItem(lineItems);
-  const quantity = hasPricingData && isPurchase ? unitLineItem.quantity.toString() : null;
-  const showStock = stockType === STOCK_MULTIPLE_ITEMS || (quantity && unitLineItem.quantity > 1);
+  const unitLineItems = getUnitLineItems(lineItems);
+  const unitLineItemsQuantity = unitLineItems.reduce((sum, item) => {
+    return sum + Number(item.quantity);
+  }, 0);
+  const quantity = hasPricingData && !isBooking ? unitLineItemsQuantity.toString() : null;
+  const showStock = stockType === STOCK_MULTIPLE_ITEMS || (quantity && unitLineItemsQuantity > 1);
+
   const otherUser = isCustomer ? provider : customer;
   const otherUserDisplayName = <UserDisplayName user={otherUser} intl={intl} />;
   const isOtherUserBanned = otherUser.attributes.banned;

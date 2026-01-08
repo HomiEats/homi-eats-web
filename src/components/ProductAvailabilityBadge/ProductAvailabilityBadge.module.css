@@ -1,0 +1,16 @@
+@import '../../styles/customMediaQueries.css';
+
+.root {
+  background-color: var(--marketplaceColorLight);
+  color: var(--colorWhite);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 16px 24px;
+  text-align: center;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: var(--fontWeightSemiBold);
+  @media (--viewportMedium) {
+    margin: 16px 0;
+  }
+}

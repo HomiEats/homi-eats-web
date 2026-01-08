@@ -13,9 +13,12 @@ import {
   LINE_ITEM_CUSTOMER_COMMISSION,
   LINE_ITEM_FIXED,
   LINE_ITEM_HOUR,
+  LINE_ITEM_ITEM,
   LINE_ITEM_PROVIDER_COMMISSION,
   LISTING_UNIT_TYPES,
   propTypes,
+  LINE_ITEM_TAX,
+  LINE_ITEM_PROMOTION_DISCOUNT,
 } from '../../util/types';
 
 import LineItemBookingPeriod from './LineItemBookingPeriod';
@@ -30,8 +33,32 @@ import LineItemProviderCommissionRefundMaybe from './LineItemProviderCommissionR
 import LineItemRefundMaybe from './LineItemRefundMaybe';
 import LineItemTotalPrice from './LineItemTotalPrice';
 import LineItemUnknownItemsMaybe from './LineItemUnknownItemsMaybe';
-
 import css from './OrderBreakdown.module.css';
+import { formatMoney } from '../../util/currency';
+import { humanizeLineItemCode } from '../../util/data';
+const LineItemTaxesMaybe = props => {
+  const { lineItems, intl } = props;
+  return lineItems
+    .filter(item => item.code.includes(LINE_ITEM_TAX))
+    .map((item, idx) => (
+      <div key={idx} className={css.lineItem}>
+        <span className={css.itemLabel}>{humanizeLineItemCode(item.code)}</span>
+        <span className={css.itemValue}>{formatMoney(intl, item.lineTotal)}</span>
+      </div>
+    ));
+};
+
+const LineItemPromotionDiscountMaybe = props => {
+  const { lineItems, intl } = props;
+  return lineItems
+    .filter(item => item.code.includes(LINE_ITEM_PROMOTION_DISCOUNT))
+    .map((item, idx) => (
+      <div key={idx} className={css.lineItem}>
+        <span className={css.itemLabel}>{humanizeLineItemCode(item.code)}</span>
+        <span className={css.itemValue}>{formatMoney(intl, item.lineTotal)}</span>
+      </div>
+    ));
+};
 
 export const OrderBreakdownComponent = props => {
   const {
@@ -44,15 +71,19 @@ export const OrderBreakdownComponent = props => {
     currency,
     marketplaceName,
     intl,
+    hideUnitLineItem = true,
   } = props;
 
   const isCustomer = userRole === 'customer';
   const isProvider = userRole === 'provider';
   const allLineItems = transaction.attributes.lineItems || [];
   // We'll show only line-items that are specific for the current userRole (customer vs provider)
+
   const lineItems = allLineItems.filter(lineItem => lineItem.includeFor.includes(userRole));
   const unitLineItem = lineItems.find(
-    item => LISTING_UNIT_TYPES.includes(item.code) && !item.reversal
+    item =>
+      (LISTING_UNIT_TYPES.includes(item.code) || item.code.includes(LINE_ITEM_ITEM)) &&
+      !item.reversal
   );
   // Line-item code that matches with base unit: day, night, hour, fixed, item
   const lineItemUnitType = unitLineItem?.code;
@@ -67,6 +98,14 @@ export const OrderBreakdownComponent = props => {
   });
 
   const classes = classNames(rootClassName || css.root, className);
+
+  const unitLineItems = lineItems.filter(li => li.code === lineItemUnitType);
+
+  const basePrices = hideUnitLineItem
+    ? null
+    : unitLineItems.map((uli, idx) => (
+        <LineItemBasePriceMaybe lineItems={[uli]} key={idx} code={lineItemUnitType} intl={intl} />
+      ));
 
   /**
    * OrderBreakdown contains different line items:
@@ -113,11 +152,12 @@ export const OrderBreakdownComponent = props => {
         timeZone={timeZone}
       />
 
-      <LineItemBasePriceMaybe lineItems={lineItems} code={lineItemUnitType} intl={intl} />
+      {basePrices}
+      {/* <LineItemBasePriceMaybe lineItems={lineItems} code={lineItemUnitType} intl={intl} /> */}
+      <LineItemUnknownItemsMaybe lineItems={lineItems} isProvider={isProvider} intl={intl} />
       <LineItemShippingFeeMaybe lineItems={lineItems} intl={intl} />
       <LineItemPickupFeeMaybe lineItems={lineItems} intl={intl} />
-      <LineItemUnknownItemsMaybe lineItems={lineItems} isProvider={isProvider} intl={intl} />
-
+      <LineItemPromotionDiscountMaybe lineItems={lineItems} intl={intl} />
       <LineItemSubTotalMaybe
         lineItems={lineItems}
         code={lineItemUnitType}
@@ -125,6 +165,8 @@ export const OrderBreakdownComponent = props => {
         intl={intl}
         marketplaceCurrency={currency}
       />
+      <LineItemTaxesMaybe lineItems={lineItems} intl={intl} />
+
       <LineItemRefundMaybe lineItems={lineItems} intl={intl} marketplaceCurrency={currency} />
 
       <LineItemCustomerCommissionMaybe
@@ -178,6 +220,7 @@ export const OrderBreakdownComponent = props => {
  * @param {propTypes.transaction} props.transaction
  * @param {propTypes.booking?} props.booking
  * @param {DATE_TYPE_DATE | DATE_TYPE_TIME | DATE_TYPE_DATETIME} props.dateType
+ * @param {boolean} props.hideUnitLineItem
  * @returns {JSX.Element} the order breakdown component
  */
 const OrderBreakdown = props => {

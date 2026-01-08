@@ -151,3 +151,8 @@ export const createUserWithIdp = body => {
 export const deleteUserAccount = body => {
   return post('/api/delete-account', body);
 };
+
+// Confirm stock reservation
+export const confirmStock = body => {
+  return post('/api/confirm-stock', body);
+};

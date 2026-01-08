@@ -86,3 +86,94 @@
     padding: 0;
   }
 }
+
+.locationAutocompleteInput {
+  /* Safari bugfix: without this Safari will print placeholder to a wrong place */
+  &::-webkit-input-placeholder {
+    line-height: normal;
+  }
+}
+
+.locationAutocompleteInputIcon {
+  display: none;
+}
+
+.predictionsRoot {
+  position: absolute;
+  width: 100%;
+  top: 36px;
+  left: 0;
+  background-color: var(--marketplaceColor);
+  border-bottom-left-radius: var(--borderRadius);
+  border-bottom-right-radius: var(--borderRadius);
+  box-shadow: var(--boxShadowPopup);
+  z-index: calc(var(--zIndexPopup) + 1);
+
+  @media (--viewportMedium) {
+    top: 40px;
+  }
+}
+
+.input {
+  margin-bottom: 24px;
+}
+
+.submitButton {
+  display: flex;
+  gap: 12px;
+  flex-direction: column;
+
+  @media (--viewportMedium) {
+    padding: 0;
+    margin-top: 72px;
+  }
+}
+
+.submitButton button {
+  min-height: 48px;
+}
+
+.addToCartButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.buyNowButton {
+  flex: 0.6;
+}
+
+.buyNowButtonDisabled {
+  flex: 1;
+}
+
+.quantityField {
+  padding: 0 24px;
+
+  @media (--viewportMedium) {
+    padding: 0;
+  }
+}
+
+.addToCartButton:disabled svg {
+  stroke: var(--colorGrey600) !important;
+}
+
+.addToCartIcon {
+  stroke: var(--colorWhite) !important;
+  width: 16px;
+  height: 16px;
+}
+
+.loadingSpinner {
+  display: flex;
+  justify-content: center;
+
+  padding: 16px 0;
+  align-items: center;
+  @media (--viewportMedium) {
+    padding: 40px 0;
+  }
+}

@@ -1,19 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import { Form as FinalForm, FormSpy } from 'react-final-form';
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { Form as FinalForm } from 'react-final-form';
 
 import { FormattedMessage, useIntl } from '../../../util/reactIntl';
 import { propTypes } from '../../../util/types';
-import { numberAtLeast, required } from '../../../util/validators';
+import {
+  autocompletePlaceSelected,
+  autocompleteSearchRequired,
+  composeValidators,
+  required,
+} from '../../../util/validators';
 import { PURCHASE_PROCESS_NAME } from '../../../transactions/transaction';
+import { types as sdkTypes } from '../../../util/sdkLoader';
+
+const { Money, LatLng } = sdkTypes;
 
 import {
   Form,
   FieldSelect,
-  FieldTextInput,
   InlineTextButton,
   PrimaryButton,
-  H3,
   H6,
+  SecondaryButton,
+  FieldQuantity,
+  IconCart,
+  FieldLocationAutocompleteInput,
+  FieldTextInput,
 } from '../../../components';
 
 import EstimatedCustomerBreakdownMaybe from '../EstimatedCustomerBreakdownMaybe';
@@ -21,50 +32,42 @@ import EstimatedCustomerBreakdownMaybe from '../EstimatedCustomerBreakdownMaybe'
 import FetchLineItemsError from '../FetchLineItemsError/FetchLineItemsError.js';
 
 import css from './ProductOrderForm.module.css';
-
-// Browsers can't render huge number of select options.
-// (stock is shown inside select element)
-// Note: input element could allow ordering bigger quantities
-const MAX_QUANTITY_FOR_DROPDOWN = 100;
+import Spinner from '../../IconSpinner/IconSpinner.js';
+import debounce from 'lodash/debounce';
+import { isListingInCart as isListingInCartFn } from '../../../util/cart';
+import { isEmpty, isEqual } from 'lodash';
+import { formatMoney } from '../../../util/currency.js';
+import classNames from 'classnames';
 
 const handleFetchLineItems = ({
   quantity,
   deliveryMethod,
-  displayDeliveryMethod,
   listingId,
-  isOwnListing,
   fetchLineItemsInProgress,
   onFetchTransactionLineItems,
+  shippingAddress,
 }) => {
-  const stockReservationQuantity = Number.parseInt(quantity, 10);
-  const deliveryMethodMaybe = deliveryMethod ? { deliveryMethod } : {};
   const isBrowser = typeof window !== 'undefined';
-  if (
-    isBrowser &&
-    stockReservationQuantity &&
-    (!displayDeliveryMethod || deliveryMethod) &&
-    !fetchLineItemsInProgress
-  ) {
+  if (isBrowser && !fetchLineItemsInProgress) {
+    const orderData = {
+      orderedProducts: {
+        deliveryMethod,
+        shippingAddress,
+        listings: {
+          [listingId.uuid]: { quantity },
+        },
+      },
+    };
     onFetchTransactionLineItems({
-      orderData: { stockReservationQuantity, ...deliveryMethodMaybe },
       listingId,
-      isOwnListing,
+      orderData,
     });
   }
 };
 
 const DeliveryMethodMaybe = props => {
-  const {
-    displayDeliveryMethod,
-    hasMultipleDeliveryMethods,
-    deliveryMethod,
-    hasStock,
-    formId,
-    intl,
-  } = props;
-  const showDeliveryMethodSelector = displayDeliveryMethod && hasMultipleDeliveryMethods;
-  const showSingleDeliveryMethod = displayDeliveryMethod && deliveryMethod;
-  return !hasStock ? null : showDeliveryMethodSelector ? (
+  const { hasStock, formId, intl, shippingEnabled, pickupEnabled } = props;
+  return !hasStock ? null : shippingEnabled && pickupEnabled ? (
     <FieldSelect
       id={`${formId}.deliveryMethod`}
       className={css.deliveryField}
@@ -73,7 +76,9 @@ const DeliveryMethodMaybe = props => {
       validate={required(intl.formatMessage({ id: 'ProductOrderForm.deliveryMethodRequired' }))}
     >
       <option disabled value="">
-        {intl.formatMessage({ id: 'ProductOrderForm.selectDeliveryMethodOption' })}
+        {intl.formatMessage({
+          id: 'ProductOrderForm.selectDeliveryMethodOption',
+        })}
       </option>
       <option value={'pickup'}>
         {intl.formatMessage({ id: 'ProductOrderForm.pickupOption' })}
@@ -82,30 +87,104 @@ const DeliveryMethodMaybe = props => {
         {intl.formatMessage({ id: 'ProductOrderForm.shippingOption' })}
       </option>
     </FieldSelect>
-  ) : showSingleDeliveryMethod ? (
-    <div className={css.deliveryField}>
-      <H3 rootClassName={css.singleDeliveryMethodLabel}>
-        {intl.formatMessage({ id: 'ProductOrderForm.deliveryMethodLabel' })}
-      </H3>
-      <p className={css.singleDeliveryMethodSelected}>
-        {deliveryMethod === 'shipping'
-          ? intl.formatMessage({ id: 'ProductOrderForm.shippingOption' })
-          : intl.formatMessage({ id: 'ProductOrderForm.pickupOption' })}
-      </p>
-      <FieldTextInput
-        id={`${formId}.deliveryMethod`}
-        className={css.deliveryField}
-        name="deliveryMethod"
-        type="hidden"
-      />
+  ) : shippingEnabled ? (
+    <H6 as="h3" className={css.deliveryMethodHeading}>
+      {intl.formatMessage({ id: 'ProductOrderForm.deliveryMethodLabel' })}:{' '}
+      {intl.formatMessage({ id: 'ProductOrderForm.shippingOption' })}
+    </H6>
+  ) : pickupEnabled ? (
+    <H6 as="h3" className={css.deliveryMethodHeading}>
+      {intl.formatMessage({ id: 'ProductOrderForm.deliveryMethodLabel' })}
+      {': '}
+      {intl.formatMessage({ id: 'ProductOrderForm.pickupOption' })}
+    </H6>
+  ) : null;
+};
+
+const DEBOUNCE_TIME = 500;
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+export const ProductOrderFormButtons = props => {
+  const {
+    fetchLineItemsInProgress,
+    fetchLineItemsError,
+    values,
+    hideButtons,
+    hasStock,
+    addOrUpdateToCartInProgress,
+    isListingInCart,
+    isAddToCartReady,
+    handleAddOrUpdateToCart,
+    intl,
+    lineItems,
+    price,
+  } = props;
+  const shouldShowButtons =
+    !fetchLineItemsInProgress &&
+    !fetchLineItemsError &&
+    values.deliveryMethod &&
+    lineItems &&
+    Object.keys(lineItems).length > 0 &&
+    !hideButtons;
+
+  return fetchLineItemsInProgress ? (
+    <div className={css.productOrderFormButtons}>
+      <div className={css.loadingSpinner}>
+        <Spinner />
+      </div>
     </div>
   ) : (
-    <FieldTextInput
-      id={`${formId}.deliveryMethod`}
-      className={css.deliveryField}
-      name="deliveryMethod"
-      type="hidden"
-    />
+    shouldShowButtons && (
+      <div className={css.productOrderFormButtons}>
+        <div className={css.submitButton}>
+          {hasStock && (
+            <PrimaryButton
+              inProgress={addOrUpdateToCartInProgress}
+              className={css.addToCartButton}
+              disabled={
+                addOrUpdateToCartInProgress ||
+                !values.deliveryMethod ||
+                (!isListingInCart && values.quantity === 0)
+              }
+              type="button"
+              ready={isAddToCartReady}
+              onClick={handleAddOrUpdateToCart}
+            >
+              <IconCart className={css.addToCartIcon} />
+              {isListingInCart ? (
+                values.quantity > 0 ? (
+                  intl.formatMessage({ id: 'ProductOrderForm.updateCart' })
+                ) : (
+                  intl.formatMessage({
+                    id: 'ProductOrderForm.removeFromCart',
+                  })
+                )
+              ) : (
+                <FormattedMessage id="ProductOrderForm.addToCart" />
+              )}
+              {values.quantity > 0 && (
+                <span className={css.quantity}>
+                  {formatMoney(intl, new Money(values.quantity * price.amount, price.currency))}
+                </span>
+              )}
+            </PrimaryButton>
+          )}
+          <SecondaryButton
+            className={classNames(css.buyNowButton, {
+              [css.buyNowButtonDisabled]: !hasStock,
+            })}
+            type="submit"
+            disabled={!hasStock}
+          >
+            {hasStock ? (
+              <FormattedMessage id="ProductOrderForm.ctaButton" />
+            ) : (
+              <FormattedMessage id="ProductOrderForm.ctaButtonNoStock" />
+            )}
+          </SecondaryButton>
+        </div>
+      </div>
+    )
   );
 };
 
@@ -120,9 +199,6 @@ const renderForm = formRenderProps => {
     intl,
     formId,
     currentStock,
-    allowOrdersOfMultipleItems,
-    hasMultipleDeliveryMethods,
-    displayDeliveryMethod,
     listingId,
     isOwnListing,
     onFetchTransactionLineItems,
@@ -134,7 +210,21 @@ const renderForm = formRenderProps => {
     payoutDetailsWarning,
     marketplaceName,
     values,
+    addOrUpdateToCartInProgress,
+    addOrUpdateToCartError,
+    onAddOrUpdateToCart,
+    cart,
+    authorId,
+    shippingEnabled,
+    pickupEnabled,
+    hideButtons,
+    formRef,
   } = formRenderProps;
+  useImperativeHandle(formRef, () => ({
+    submit: () => {
+      formApi.submit();
+    },
+  }));
 
   // Note: don't add custom logic before useEffect
   useEffect(() => {
@@ -142,24 +232,24 @@ const renderForm = formRenderProps => {
 
     // Side-effect: fetch line-items after mounting if possible
     const { quantity, deliveryMethod } = values;
-    if (quantity && !formRenderProps.hasMultipleDeliveryMethods) {
+    if (quantity && deliveryMethod) {
       handleFetchLineItems({
         quantity,
         deliveryMethod,
-        displayDeliveryMethod,
         listingId,
-        isOwnListing,
         fetchLineItemsInProgress,
         onFetchTransactionLineItems,
       });
     }
   }, []);
 
+  const debounceFetchLineItems = useCallback(debounce(handleFetchLineItems, DEBOUNCE_TIME), []);
+
   // If form values change, update line-items for the order breakdown
   const handleOnChange = formValues => {
     const { quantity, deliveryMethod } = formValues.values;
-    if (mounted) {
-      handleFetchLineItems({
+    if (mounted && quantity && deliveryMethod) {
+      debounceFetchLineItems({
         quantity,
         deliveryMethod,
         listingId,
@@ -179,7 +269,7 @@ const renderForm = formRenderProps => {
       // Blur event will show validator message
       formApi.blur('quantity');
       formApi.focus('quantity');
-    } else if (displayDeliveryMethod && !deliveryMethod) {
+    } else if (!deliveryMethod) {
       e.preventDefault();
       // Blur event will show validator message
       formApi.blur('deliveryMethod');
@@ -191,7 +281,12 @@ const renderForm = formRenderProps => {
 
   const breakdownData = {};
   const showBreakdown =
-    breakdownData && lineItems && !fetchLineItemsInProgress && !fetchLineItemsError;
+    breakdownData &&
+    lineItems &&
+    !fetchLineItemsError &&
+    !fetchLineItemsInProgress &&
+    values.quantity &&
+    values.deliveryMethod;
 
   const showContactUser = typeof onContactUser === 'function';
 
@@ -205,59 +300,58 @@ const renderForm = formRenderProps => {
       <FormattedMessage id="ProductOrderForm.finePrintNoStockLinkText" />
     </InlineTextButton>
   );
-  const quantityRequiredMsg = intl.formatMessage({ id: 'ProductOrderForm.quantityRequired' });
 
   // Listing is out of stock if currentStock is zero.
   // Undefined/null stock means that stock has never been set.
-  const hasNoStockLeft = typeof currentStock != null && currentStock === 0;
-  const hasStock = currentStock && currentStock > 0;
-  const hasOneItemLeft = currentStock === 1;
-  const selectableStock =
-    currentStock > MAX_QUANTITY_FOR_DROPDOWN ? MAX_QUANTITY_FOR_DROPDOWN : currentStock;
-  const quantities = hasStock ? [...Array(selectableStock).keys()].map(i => i + 1) : [];
+  const hasStock = !!(currentStock && currentStock > 0);
 
-  const submitInProgress = fetchLineItemsInProgress;
-  const submitDisabled = !hasStock;
+  const isListingInCart = isListingInCartFn(cart, listingId.uuid, authorId.uuid);
+
+  const [lastAddToCartValues, setLastAddToCartValues] = useState({});
+
+  useEffect(() => {
+    handleOnChange({ values });
+  }, [
+    values.quantity,
+    values.deliveryMethod,
+    values.shippingAddress?.selectedPlace?.origin?.lat,
+    values.shippingAddress?.selectedPlace?.origin?.lng,
+  ]);
+
+  const handleAddOrUpdateToCart = async () => {
+    const response = await onAddOrUpdateToCart(values);
+    if (response) {
+      setLastAddToCartValues(values);
+    }
+  };
+
+  const submittedOnce = Object.keys(lastAddToCartValues).length > 0;
+
+  const pristineSinceLastAddToCart = isEqual(lastAddToCartValues, values);
+
+  const isAddToCartReady = submittedOnce && pristineSinceLastAddToCart;
 
   return (
-    <Form onSubmit={handleFormSubmit}>
-      <FormSpy subscription={{ values: true }} onChange={handleOnChange} />
-      {hasNoStockLeft ? null : hasOneItemLeft || !allowOrdersOfMultipleItems ? (
-        <FieldTextInput
-          id={`${formId}.quantity`}
+    <Form onSubmit={handleFormSubmit} className={css.form}>
+      {hasStock && (
+        <FieldQuantity
           className={css.quantityField}
+          id={`${formId}.quantity`}
           name="quantity"
-          type="hidden"
-          validate={numberAtLeast(quantityRequiredMsg, 1)}
+          label={intl.formatMessage({ id: 'ProductOrderForm.quantity' })}
+          maxQuantity={currentStock}
         />
-      ) : (
-        <FieldSelect
-          id={`${formId}.quantity`}
-          className={css.quantityField}
-          name="quantity"
-          disabled={!hasStock}
-          label={intl.formatMessage({ id: 'ProductOrderForm.quantityLabel' })}
-          validate={numberAtLeast(quantityRequiredMsg, 1)}
-        >
-          <option disabled value="">
-            {intl.formatMessage({ id: 'ProductOrderForm.selectQuantityOption' })}
-          </option>
-          {quantities.map(quantity => (
-            <option key={quantity} value={quantity}>
-              {intl.formatMessage({ id: 'ProductOrderForm.quantityOption' }, { quantity })}
-            </option>
-          ))}
-        </FieldSelect>
       )}
 
       <DeliveryMethodMaybe
-        displayDeliveryMethod={displayDeliveryMethod}
-        hasMultipleDeliveryMethods={hasMultipleDeliveryMethods}
-        deliveryMethod={values?.deliveryMethod}
         hasStock={hasStock}
         formId={formId}
         intl={intl}
+        shippingEnabled={shippingEnabled}
+        pickupEnabled={pickupEnabled}
       />
+
+      <FetchLineItemsError error={fetchLineItemsError} />
 
       {showBreakdown ? (
         <div className={css.breakdownWrapper}>
@@ -275,17 +369,27 @@ const renderForm = formRenderProps => {
         </div>
       ) : null}
 
-      <FetchLineItemsError error={fetchLineItemsError} />
+      {addOrUpdateToCartError && (
+        <div className={css.error}>
+          <FormattedMessage id="ProductOrderForm.addToCartError" />
+        </div>
+      )}
 
-      <div className={css.submitButton}>
-        <PrimaryButton type="submit" inProgress={submitInProgress} disabled={submitDisabled}>
-          {hasStock ? (
-            <FormattedMessage id="ProductOrderForm.ctaButton" />
-          ) : (
-            <FormattedMessage id="ProductOrderForm.ctaButtonNoStock" />
-          )}
-        </PrimaryButton>
-      </div>
+      <ProductOrderFormButtons
+        fetchLineItemsInProgress={fetchLineItemsInProgress}
+        fetchLineItemsError={fetchLineItemsError}
+        values={values}
+        hideButtons={hideButtons}
+        hasStock={hasStock}
+        addOrUpdateToCartInProgress={addOrUpdateToCartInProgress}
+        isListingInCart={isListingInCart}
+        isAddToCartReady={isAddToCartReady}
+        handleAddOrUpdateToCart={handleAddOrUpdateToCart}
+        intl={intl}
+        lineItems={lineItems}
+        price={price}
+      />
+
       <p className={css.finePrint}>
         {payoutDetailsWarning ? (
           payoutDetailsWarning
@@ -323,48 +427,110 @@ const renderForm = formRenderProps => {
  * @param {boolean} props.fetchLineItemsInProgress - Whether the line items are being fetched
  * @param {propTypes.error} props.fetchLineItemsError - The error for fetching the line items
  * @param {Function} props.onContactUser - The function to contact the user
+ * @param {Object} props.cart - The cart object
+ * @param {boolean} props.addOrUpdateToCartInProgress - Whether the add or update to cart is in progress
+ * @param {propTypes.error} props.addOrUpdateToCartError - The error for adding or updating to cart
+ * @param {Function} props.onAddOrUpdateToCart - The function to add or update to cart
  * @returns {JSX.Element}
  */
+
+const createInitialValues = (
+  cart,
+  authorId,
+  listingId,
+  timeZone,
+  defaultDeliveryAddress,
+  shippingEnabled,
+  pickupEnabled,
+  currentStock
+) => {
+  let initialValues = {};
+
+  if (currentStock === 0) {
+    return {};
+  }
+  const authorCart = cart[authorId];
+  if (defaultDeliveryAddress) {
+    initialValues.shippingAddress = {
+      search: defaultDeliveryAddress?.address,
+      selectedPlace: {
+        address: defaultDeliveryAddress?.address,
+        origin: new LatLng(
+          defaultDeliveryAddress?.origin?.lat,
+          defaultDeliveryAddress?.origin?.lng
+        ),
+      },
+    };
+  }
+
+  Object.entries(authorCart || {}).forEach(([deliveryMethod, cartListing]) => {
+    if (cartListing.listings[listingId]) {
+      initialValues.quantity = cartListing.listings[listingId].quantity;
+      initialValues.deliveryMethod = deliveryMethod;
+    }
+
+    const hasDeliveryDetails = !isEmpty(cartListing.deliveryDetails);
+    if (hasDeliveryDetails) {
+      initialValues = {
+        ...initialValues,
+        ...cartListing.deliveryDetails,
+        shippingAddress: {
+          search: cartListing.deliveryDetails.shippingAddress.address,
+          selectedPlace: {
+            address: cartListing.deliveryDetails.shippingAddress.address,
+            origin: new LatLng(
+              cartListing.deliveryDetails.shippingAddress.origin.lat,
+              cartListing.deliveryDetails.shippingAddress.origin.lng
+            ),
+          },
+        },
+      };
+    }
+  });
+
+  initialValues = {
+    ...initialValues,
+    ...(shippingEnabled && !pickupEnabled ? { deliveryMethod: 'shipping' } : {}),
+    ...(pickupEnabled && !shippingEnabled ? { deliveryMethod: 'pickup' } : {}),
+  };
+  return initialValues;
+};
+
 const ProductOrderForm = props => {
   const intl = useIntl();
   const {
-    price,
-    currentStock,
-    pickupEnabled,
+    cart,
+    authorId,
+    listingId,
+    storeTimeZone,
+    defaultDeliveryAddress,
     shippingEnabled,
-    displayDeliveryMethod,
-    allowOrdersOfMultipleItems,
+    pickupEnabled,
+    currentStock,
   } = props;
 
-  // Should not happen for listings that go through EditListingWizard.
-  // However, this might happen for imported listings.
-  if (displayDeliveryMethod && !pickupEnabled && !shippingEnabled) {
-    return (
-      <p className={css.error}>
-        <FormattedMessage id="ProductOrderForm.noDeliveryMethodSet" />
-      </p>
-    );
-  }
+  const initialValuesWithDefaultDeliveryAddress = createInitialValues(
+    cart,
+    authorId.uuid,
+    listingId.uuid,
+    storeTimeZone,
+    defaultDeliveryAddress,
+    shippingEnabled,
+    pickupEnabled,
+    currentStock
+  );
 
-  const hasOneItemLeft = currentStock && currentStock === 1;
-  const hasOneItemMode = !allowOrdersOfMultipleItems && currentStock > 0;
-  const quantityMaybe = hasOneItemLeft || hasOneItemMode ? { quantity: '1' } : {};
-  const deliveryMethodMaybe =
-    shippingEnabled && !pickupEnabled
-      ? { deliveryMethod: 'shipping' }
-      : !shippingEnabled && pickupEnabled
-      ? { deliveryMethod: 'pickup' }
-      : !shippingEnabled && !pickupEnabled
-      ? { deliveryMethod: 'none' }
-      : {};
-  const hasMultipleDeliveryMethods = pickupEnabled && shippingEnabled;
-  const initialValues = { ...quantityMaybe, ...deliveryMethodMaybe };
+  const initialValues = useMemo(() => {
+    return {
+      quantity: currentStock > 0 ? 1 : 0,
+      ...initialValuesWithDefaultDeliveryAddress,
+    };
+  }, [JSON.stringify(initialValuesWithDefaultDeliveryAddress), currentStock]);
 
   return (
     <FinalForm
       initialValues={initialValues}
-      hasMultipleDeliveryMethods={hasMultipleDeliveryMethods}
-      displayDeliveryMethod={displayDeliveryMethod}
+      keepDirtyOnReinitialize
       {...props}
       intl={intl}
       render={renderForm}

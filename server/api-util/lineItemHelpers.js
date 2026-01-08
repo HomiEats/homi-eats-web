@@ -353,7 +353,7 @@ exports.getProviderCommissionMaybe = (providerCommission, order, currency) => {
   }
 
   // Calculate the total money paid into the transaction
-  const totalMoneyIn = this.calculateTotalFromLineItems([order]);
+  const totalMoneyIn = this.calculateTotalFromLineItems(order);
   // Calculate the estimated commission with percentage applied, if applicable
   const estimatedCommissionFromPercentage = calculateCommissionWithPercentage(
     providerCommission?.percentage,
@@ -409,7 +409,8 @@ exports.getCustomerCommissionMaybe = (customerCommission, order, currency) => {
   }
 
   // Calculate the total money paid into the transaction
-  const totalMoneyIn = this.calculateTotalFromLineItems([order]);
+  const totalMoneyIn = this.calculateTotalFromLineItems(order);
+
   // Calculate the estimated commission with percentage applied, if applicable
   const estimatedCommissionFromPercentage = calculateCommissionWithPercentage(
     customerCommission?.percentage,
@@ -435,7 +436,7 @@ exports.getCustomerCommissionMaybe = (customerCommission, order, currency) => {
     : [
         {
           code: 'line-item/customer-commission',
-          unitPrice: this.calculateTotalFromLineItems([order]),
+          unitPrice: this.calculateTotalFromLineItems(order),
           percentage: customerCommission.percentage,
           includeFor: ['customer'],
         },

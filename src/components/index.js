@@ -38,6 +38,7 @@ export { default as IconSocialMediaInstagram } from './IconSocialMediaInstagram/
 export { default as IconSocialMediaTwitter } from './IconSocialMediaTwitter/IconSocialMediaTwitter';
 export { default as IconSpinner } from './IconSpinner/IconSpinner';
 export { default as IconSuccess } from './IconSuccess/IconSuccess';
+export { default as IconCart } from './IconCart/IconCart';
 
 // Typography
 export { Heading, H1, H2, H3, H4, H5, H6  } from './Heading/Heading';
@@ -99,6 +100,8 @@ export { default as FieldReviewRating } from './FieldReviewRating/FieldReviewRat
 export { default as FieldSelect } from './FieldSelect/FieldSelect';
 export { default as FieldSelectTree } from './FieldSelectTree/FieldSelectTree';
 export { default as FieldTextInput } from './FieldTextInput/FieldTextInput';
+export { default as FieldQuantity } from './FieldQuantity/FieldQuantity';
+export { default as QuantitySelector } from './FieldQuantity/QuantitySelector';
 
 // Fields that use other Fields
 export { default as FieldBoolean } from './FieldBoolean/FieldBoolean';
@@ -144,3 +147,8 @@ export { default as StripeConnectAccountForm } from './StripeConnectAccountForm/
 export { default as LayoutComposer, LayoutSingleColumn, LayoutSideNavigation } from './LayoutComposer';
 export { default as MaintenanceMode } from './MaintenanceMode/MaintenanceMode';
 export { default as ModalMissingInformation } from './ModalMissingInformation/ModalMissingInformation';
+
+export { default as CartLink } from './CartLink/CartLink';
+export { default as IconRemove } from './IconRemove/IconRemove';
+export { default as IconDeliveryCar } from './IconDeliveryCar/IconDeliveryCar';
+export { default as ProductAvailabilityBadge } from './ProductAvailabilityBadge/ProductAvailabilityBadge';

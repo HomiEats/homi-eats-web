@@ -40,6 +40,7 @@ import MobileListingImage from './MobileListingImage';
 import MobileOrderBreakdown from './MobileOrderBreakdown';
 
 import css from './CheckoutPage.module.css';
+import CartDetailsSideCard from './CartDetailsSideCard.js';
 
 // Stripe PaymentIntent statuses, where user actions are already completed
 // https://stripe.com/docs/payments/payment-intents/status
@@ -108,6 +109,10 @@ const getOrderParams = (pageData, shippingDetails, optionalPaymentParams, config
   const seatsMaybe = seats ? { seats } : {};
   const deliveryMethod = pageData.orderData?.deliveryMethod;
   const deliveryMethodMaybe = deliveryMethod ? { deliveryMethod } : {};
+  const orderedProducts = pageData.orderData?.orderedProducts;
+  const orderedProductsMaybe = orderedProducts ? { orderedProducts } : {};
+  const fromCart = pageData.orderData?.fromCart;
+  const fromCartMaybe = fromCart ? { fromCart } : {};
   const { listingType, unitType, priceVariants } = pageData?.listing?.attributes?.publicData || {};
 
   // price variant data for fixed duration bookings
@@ -122,6 +127,8 @@ const getOrderParams = (pageData, shippingDetails, optionalPaymentParams, config
       ...deliveryMethodMaybe,
       ...shippingDetails,
       ...priceVariantMaybe,
+      ...orderedProductsMaybe,
+      ...fromCartMaybe,
     },
   };
 
@@ -143,6 +150,8 @@ const getOrderParams = (pageData, shippingDetails, optionalPaymentParams, config
     ...priceVariantNameMaybe,
     ...protectedDataMaybe,
     ...optionalPaymentParams,
+    ...orderedProductsMaybe,
+    ...fromCartMaybe,
   };
   return orderParams;
 };
@@ -250,6 +259,9 @@ const handleSubmit = (values, process, props, stripe, submitting, setSubmitting)
     pageData,
     setPageData,
     sessionStorageKey,
+    onConfirmStock,
+    onClearAuthorCart,
+    onClearCart,
   } = props;
   const { card, message, paymentMethod: selectedPaymentMethod, formValues } = values;
   const { saveAfterOnetimePayment: saveAfterOnetimePaymentRaw } = formValues;
@@ -288,6 +300,9 @@ const handleSubmit = (values, process, props, stripe, submitting, setSubmitting)
     isPaymentFlowUseSavedCard: selectedPaymentFlow === USE_SAVED_CARD,
     isPaymentFlowPayAndSaveCard: selectedPaymentFlow === PAY_AND_SAVE_FOR_LATER_USE,
     setPageData,
+    onConfirmStock,
+    onClearAuthorCart,
+    onClearCart,
   };
 
   const shippingDetails = getShippingDetailsMaybe(formValues);
@@ -416,6 +431,7 @@ export const CheckoutPageWithPayment = props => {
     listingTitle,
     title,
     config,
+    listings,
   } = props;
 
   // Since the listing data is already given from the ListingPage
@@ -559,31 +575,71 @@ export const CheckoutPageWithPayment = props => {
     );
   }
 
+  const detailsSideCard = (props = {}) =>
+    orderData.orderedProducts && listings.length > 0 ? (
+      <CartDetailsSideCard
+        listings={listings}
+        author={listing?.author}
+        layoutListingImageConfig={config.layout.listingImage}
+        speculateTransactionErrorMessage={errorMessages.speculateTransactionErrorMessage}
+        isInquiryProcess={false}
+        processName={processName}
+        breakdown={breakdown}
+        intl={intl}
+        orderedProducts={orderData.orderedProducts}
+        {...props}
+      />
+    ) : (
+      <DetailsSideCard
+        listing={listing}
+        listingTitle={listingTitle}
+        priceVariantName={priceVariantName}
+        author={listing?.author}
+        firstImage={firstImage}
+        layoutListingImageConfig={config.layout.listingImage}
+        speculateTransactionErrorMessage={errorMessages.speculateTransactionErrorMessage}
+        isInquiryProcess={false}
+        processName={processName}
+        breakdown={breakdown}
+        showListingImage={showListingImage}
+        intl={intl}
+        {...props}
+      />
+    );
+
   return (
     <Page title={title} scrollingDisabled={scrollingDisabled}>
       <TopbarSimplified />
       <div className={css.contentContainer}>
-        <MobileListingImage
-          listingTitle={listingTitle}
-          author={listing?.author}
-          firstImage={firstImage}
-          layoutListingImageConfig={config.layout.listingImage}
-          showListingImage={showListingImage}
-        />
-        <main className={css.orderFormContainer}>
-          <div className={css.headingContainer}>
-            <H3 as="h1" className={css.heading}>
-              {title}
-            </H3>
-            <H4 as="h2" className={css.detailsHeadingMobile}>
-              <FormattedMessage id="CheckoutPage.listingTitle" values={{ listingTitle }} />
-            </H4>
-          </div>
-          <MobileOrderBreakdown
-            speculateTransactionErrorMessage={errorMessages.speculateTransactionErrorMessage}
-            breakdown={breakdown}
-            priceVariantName={priceVariantName}
+        {orderData.orderedProducts && listings.length > 0 ? null : (
+          <MobileListingImage
+            listingTitle={listingTitle}
+            author={listing?.author}
+            firstImage={firstImage}
+            layoutListingImageConfig={config.layout.listingImage}
+            showListingImage={showListingImage}
           />
+        )}
+        <main className={css.orderFormContainer}>
+          {orderData.orderedProducts && listings.length > 0 ? (
+            detailsSideCard({ className: css.detailsContainerMobile })
+          ) : (
+            <>
+              <div className={css.headingContainer}>
+                <H3 as="h1" className={css.heading}>
+                  {title}
+                </H3>
+                <H4 as="h2" className={css.detailsHeadingMobile}>
+                  <FormattedMessage id="CheckoutPage.listingTitle" values={{ listingTitle }} />
+                </H4>
+              </div>
+              <MobileOrderBreakdown
+                speculateTransactionErrorMessage={errorMessages.speculateTransactionErrorMessage}
+                breakdown={breakdown}
+                priceVariantName={priceVariantName}
+              />
+            </>
+          )}
           <section className={css.paymentContainer}>
             {errorMessages.initiateOrderErrorMessage}
             {errorMessages.listingNotFoundErrorMessage}
@@ -632,20 +688,7 @@ export const CheckoutPageWithPayment = props => {
           </section>
         </main>
 
-        <DetailsSideCard
-          listing={listing}
-          listingTitle={listingTitle}
-          priceVariantName={priceVariantName}
-          author={listing?.author}
-          firstImage={firstImage}
-          layoutListingImageConfig={config.layout.listingImage}
-          speculateTransactionErrorMessage={errorMessages.speculateTransactionErrorMessage}
-          isInquiryProcess={false}
-          processName={processName}
-          breakdown={breakdown}
-          showListingImage={showListingImage}
-          intl={intl}
-        />
+        {detailsSideCard({ className: css.detailsContainerDesktop })}
       </div>
     </Page>
   );

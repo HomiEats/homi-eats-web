@@ -1,0 +1,207 @@
+@import '../../../styles/marketplaceDefaults.css';
+
+.cardLayout {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--colorWhite);
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: var(--boxShadowListingCard);
+}
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  & > h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 20px;
+  }
+}
+
+.storeInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.storeInfoItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  & > p {
+    font-size: 14px;
+    margin: 0;
+  }
+}
+
+.icon {
+  stroke: var(--marketplaceColorLight);
+}
+
+.storeInfoItemIcon {
+  min-width: 32px;
+}
+
+.iconLocation {
+  stroke: var(--marketplaceColorLight);
+  width: 32px;
+  height: 32px;
+}
+
+.deliveryCarIcon {
+  fill: var(--marketplaceColorLight);
+  width: 32px;
+  height: 32px;
+}
+
+.cartBody {
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cartListing {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: var(--boxShadowCartCard);
+
+  @media (--viewportMedium) {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.sectionListingDetails {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.listingImage {
+  width: 100%;
+  border: solid 1px var(--matterColorNegative);
+  border-radius: 10px;
+  height: 90px;
+  width: 90px;
+}
+
+.listingInfo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.category {
+  font-size: 11px;
+  font-weight: var(--fontWeightSemiBold);
+
+  width: fit-content;
+  padding: 0px 10px;
+  border: solid 1px var(--colorGrey400);
+  border-radius: 20px;
+}
+
+.price {
+  & * {
+    font-size: 16px;
+    margin: 0;
+  }
+}
+
+.quantityField {
+  padding: 0;
+}
+
+.sectionListingPrice {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  @media (--viewportMedium) {
+    justify-content: flex-end;
+    gap: 20px;
+  }
+}
+
+.removeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.listingTitle {
+  & > h5 {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    font-weight: var(--fontWeightBold);
+  }
+}
+
+.proceedCheckoutButton {
+  margin: 20px 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+}
+
+.errorMessage {
+  color: var(--colorFail);
+  font-weight: var(--fontWeightSemiBold);
+  font-size: 14px;
+  margin: 14px 0 0 0;
+}
+
+.promotionCodeContainer {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  margin: 40px 0 20px 0;
+}
+
+.promotionCodeInputContainer {
+  flex: 1;
+}
+
+.applyPromotionCodeButton {
+  max-height: 48px;
+  min-height: 48px;
+  flex: 0.3;
+}
+
+.promotionCodeErrorMessage {
+  color: var(--colorFail);
+  font-weight: var(--fontWeightSemiBold);
+  font-size: 14px;
+  margin: 0 0 40px 0;
+}

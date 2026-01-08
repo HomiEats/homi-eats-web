@@ -20,7 +20,6 @@ const getItemQuantityAndLineItems = (orderData, publicData, currency) => {
   const quantity = orderData ? orderData.stockReservationQuantity : null;
   const deliveryMethod = orderData && orderData.deliveryMethod;
   const isShipping = deliveryMethod === 'shipping';
-  const isPickup = deliveryMethod === 'pickup';
   const { shippingPriceInSubunitsOneItem, shippingPriceInSubunitsAdditionalItems } =
     publicData || {};
 
@@ -34,24 +33,7 @@ const getItemQuantityAndLineItems = (orderData, publicData, currency) => {
       )
     : null;
 
-  // Add line-item for given delivery method.
-  // Note: by default, pickup considered as free and, therefore, we don't add pickup fee line-item
-  const deliveryLineItem = !!shippingFee
-    ? [
-        {
-          code: 'line-item/shipping-fee',
-          unitPrice: shippingFee,
-          quantity: 1,
-          includeFor: ['customer', 'provider'],
-        },
-      ]
-    : [];
-
-  return { quantity, extraLineItems: deliveryLineItem };
-};
-
-const getOfferQuantityAndLineItems = orderData => {
-  return { quantity: 1, extraLineItems: [] };
+  return { quantity };
 };
 
 /**
@@ -106,47 +88,17 @@ const getDateRangeQuantityAndLineItems = (orderData, code) => {
   return hasSeats ? { units, seats, extraLineItems: [] } : { quantity: units, extraLineItems: [] };
 };
 
-/**
- * Returns collection of lineItems (max 50)
- *
- * All the line-items dedicated to _customer_ define the "payin total".
- * Similarly, the sum of all the line-items included for _provider_ create "payout total".
- * Platform gets the commission, which is the difference between payin and payout totals.
- *
- * Each line items has following fields:
- * - `code`: string, mandatory, indentifies line item type (e.g. \"line-item/cleaning-fee\"), maximum length 64 characters.
- * - `unitPrice`: money, mandatory
- * - `lineTotal`: money
- * - `quantity`: number
- * - `percentage`: number (e.g. 15.5 for 15.5%)
- * - `seats`: number
- * - `units`: number
- * - `includeFor`: array containing strings \"customer\" or \"provider\", default [\":customer\"  \":provider\" ]
- *
- * Line item must have either `quantity` or `percentage` or both `seats` and `units`.
- *
- * `includeFor` defines commissions. Customer commission is added by defining `includeFor` array `["customer"]` and provider commission by `["provider"]`.
- *
- * @param {Object} listing
- * @param {Object} orderData
- * @param {string} [orderData.priceVariantName] - The name of the price variant (potentially used with bookable unit types)
- * @param {Money} [orderData.offer] - The offer for the offer (if transition intent is "make-offer")
- * @param {Object} providerCommission
- * @param {Object} customerCommission
- * @returns {Array} lineItems
- */
-exports.transactionLineItems = (listing, orderData, providerCommission, customerCommission) => {
+const getDefaultLineItems = (orderData, customerCommission, providerCommission, listing) => {
   const publicData = listing.attributes.publicData;
   // Note: the unitType needs to be one of the following:
   // day, night, hour, fixed, or item (these are related to payment processes)
   const { unitType, priceVariants, priceVariationsEnabled } = publicData;
 
   const isBookable = ['day', 'night', 'hour', 'fixed'].includes(unitType);
-  const isNegotiationUnitType = ['offer', 'request'].includes(unitType);
   const priceAttribute = listing.attributes.price;
-  const currency = priceAttribute?.currency || orderData.currency;
+  const currency = priceAttribute.currency;
 
-  const { priceVariantName, offer } = orderData || {};
+  const { priceVariantName } = orderData || {};
   const priceVariantConfig = priceVariants
     ? priceVariants.find(pv => pv.name === priceVariantName)
     : null;
@@ -156,8 +108,6 @@ exports.transactionLineItems = (listing, orderData, providerCommission, customer
   const unitPrice =
     isBookable && priceVariationsEnabled && isPriceInSubunitsValid
       ? new Money(priceInSubunits, currency)
-      : offer instanceof Money && isNegotiationUnitType
-      ? offer
       : priceAttribute;
 
   /**
@@ -184,8 +134,6 @@ exports.transactionLineItems = (listing, orderData, providerCommission, customer
       ? getHourQuantityAndLineItems(orderData)
       : ['day', 'night'].includes(unitType)
       ? getDateRangeQuantityAndLineItems(orderData, code)
-      : isNegotiationUnitType
-      ? getOfferQuantityAndLineItems(orderData)
       : {};
 
   const { quantity, units, seats, extraLineItems } = quantityAndExtraLineItems;
@@ -232,9 +180,207 @@ exports.transactionLineItems = (listing, orderData, providerCommission, customer
   const lineItems = [
     order,
     ...extraLineItems,
-    ...getProviderCommissionMaybe(providerCommission, order, currency),
-    ...getCustomerCommissionMaybe(customerCommission, order, currency),
+    ...getProviderCommissionMaybe(providerCommission, [order], priceAttribute),
+    ...getCustomerCommissionMaybe(customerCommission, [order], priceAttribute),
   ];
 
   return lineItems;
+};
+
+const getProductOrderLineItems = (orderData, listings, providerCommission, customerCommission) => {
+  const ordererListings = orderData.orderedProducts.listings;
+  const deliveryMethod = orderData.orderedProducts.deliveryMethod;
+  let orderQuantity = 0;
+  const isShipping = deliveryMethod === 'shipping';
+  const listingLineItems = listings.map(listing => {
+    const quantity = ordererListings[listing.id.uuid].quantity;
+
+    const publicData = listing.attributes.publicData;
+
+    orderQuantity += Number(quantity);
+
+    // Note: the unitType needs to be one of the following:
+    // day, night, hour, fixed, or item (these are related to payment processes)
+    const { unitType } = publicData;
+
+    const priceAttribute = listing.attributes.price;
+
+    /**
+     * Pricing starts with order's base price:
+     * Listing's price is related to a single unit. It needs to be multiplied by quantity
+     *
+     * Initial line-item needs therefore:
+     * - code (based on unitType)
+     * - unitPrice
+     * - quantity
+     * - includedFor
+     */
+
+    const code = `line-item/${unitType}-${listing.id.uuid}`;
+
+    // Throw error if there is no quantity information given
+    if (!quantity) {
+      const message = `Error: orderData is missing the following information: quantity.`;
+
+      const error = new Error(message);
+      error.status = 400;
+      error.statusText = message;
+      error.data = {};
+      throw error;
+    }
+
+    const orderLineItem = {
+      code,
+      unitPrice: priceAttribute,
+      quantity,
+      includeFor: ['customer', 'provider'],
+    };
+    return orderLineItem;
+  });
+
+  const currency = listingLineItems?.[0]?.unitPrice?.currency;
+  if (!currency) {
+    const error = new Error('Currency not found');
+    error.status = 400;
+    error.statusText = 'Currency not found';
+    error.data = {};
+    throw error;
+  }
+
+  const {
+    shippingPriceInSubunitsOneItem,
+    shippingPriceInSubunitsAdditionalItems,
+  } = listings.reduce(
+    (acc, listing) => {
+      const { publicData } = listing.attributes;
+      return {
+        shippingPriceInSubunitsOneItem: Math.min(
+          acc.shippingPriceInSubunitsOneItem,
+          publicData.shippingPriceInSubunitsOneItem
+        ),
+        shippingPriceInSubunitsAdditionalItems: Math.min(
+          acc.shippingPriceInSubunitsAdditionalItems,
+          publicData.shippingPriceInSubunitsAdditionalItems
+        ),
+      };
+    },
+    {
+      shippingPriceInSubunitsOneItem: Infinity,
+      shippingPriceInSubunitsAdditionalItems: Infinity,
+    }
+  );
+
+  const shippingFeeUnitPrice = isShipping
+    ? calculateShippingFee(
+        shippingPriceInSubunitsOneItem,
+        shippingPriceInSubunitsAdditionalItems,
+        currency,
+        orderQuantity
+      )
+    : null;
+
+  const deliveryLineItemMaybe = !!isShipping
+    ? [
+        {
+          code: 'line-item/shipping-fee',
+          unitPrice: shippingFeeUnitPrice,
+          quantity: 1,
+          includeFor: ['customer', 'provider'],
+        },
+      ]
+    : [];
+
+  const customerCommissionMaybe = getCustomerCommissionMaybe(
+    customerCommission,
+    [...deliveryLineItemMaybe, ...listingLineItems],
+    currency
+  );
+
+  const providerCommissionMaybe = getProviderCommissionMaybe(
+    providerCommission,
+    [...listingLineItems, ...deliveryLineItemMaybe],
+    currency
+  );
+  // Let's keep the base price (order) as first line item and provider and customer commissions as last.
+  // Note: the order matters only if OrderBreakdown component doesn't recognize line-item.
+  const lineItems = [
+    ...listingLineItems,
+    ...deliveryLineItemMaybe,
+    ...providerCommissionMaybe,
+    ...customerCommissionMaybe,
+  ];
+
+  return lineItems;
+};
+
+/**
+ * Returns collection of lineItems (max 50)
+ *
+ * All the line-items dedicated to _customer_ define the "payin total".
+ * Similarly, the sum of all the line-items included for _provider_ create "payout total".
+ * Platform gets the commission, which is the difference between payin and payout totals.
+ *
+ * Each line items has following fields:
+ * - `code`: string, mandatory, indentifies line item type (e.g. \"line-item/cleaning-fee\"), maximum length 64 characters.
+ * - `unitPrice`: money, mandatory
+ * - `lineTotal`: money
+ * - `quantity`: number
+ * - `percentage`: number (e.g. 15.5 for 15.5%)
+ * - `seats`: number
+ * - `units`: number
+ * - `includeFor`: array containing strings \"customer\" or \"provider\", default [\":customer\"  \":provider\" ]
+ *
+ * Line item must have either `quantity` or `percentage` or both `seats` and `units`.
+ *
+ * `includeFor` defines commissions. Customer commission is added by defining `includeFor` array `["customer"]` and provider commission by `["provider"]`.
+ *
+ * @param {Object} listings
+ * @param {Object} orderData
+ * @param {Object} providerCommission
+ * @param {Object} customerCommission
+ * @param {number} shippingFee
+ * @returns {Array} lineItems
+ */
+exports.transactionLineItems = (listings, orderData, providerCommission, customerCommission) => {
+  if (orderData.orderedProducts) {
+    return getProductOrderLineItems(orderData, listings, providerCommission, customerCommission);
+  } else {
+    const [listing] = listings;
+    return getDefaultLineItems(orderData, customerCommission, providerCommission, listing);
+  }
+};
+
+exports.formatLineItems = (lineItems, listings) => {
+  const formattedLineItems = lineItems.map(item => {
+    const code = item.code;
+    const isPercentage = typeof item.percentage !== 'undefined';
+    if (code.includes('item-')) {
+      const listingId = code.split('item-')[1];
+      const listingTitle = listings.find(listing => listing.id.uuid === listingId).attributes.title;
+      return {
+        code: 'line-item/item',
+        actualCode: item.code,
+        title: `${listingTitle}`,
+        quantity: item.quantity,
+        unitPriceAmount: item.unitPrice.amount / 100,
+        unitPriceCurrency: item.unitPrice.currency,
+        lineTotalAmount: (item.unitPrice.amount / 100) * item.quantity,
+        lineTotalCurrency: item.unitPrice.currency,
+        includeFor: item.includeFor,
+      };
+    } else {
+      return {
+        code: item.code,
+        title: item.code,
+        ...(isPercentage ? { percentage: item.percentage } : { quantity: item.quantity }),
+        unitPriceAmount: item.unitPrice.amount / 100,
+        unitPriceCurrency: item.unitPrice.currency,
+        includeFor: item.includeFor,
+        lineTotalAmount:
+          (item.unitPrice.amount / 100) * (isPercentage ? item.percentage / 100 : item.quantity),
+        lineTotalCurrency: item.unitPrice.currency,
+      };
+    }
+  });
+  return formattedLineItems;
 };

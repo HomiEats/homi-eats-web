@@ -12,6 +12,7 @@ import {
   MenuContent,
   MenuItem,
   NamedLink,
+  CartLink,
 } from '../../../../components';
 
 import TopbarSearchForm from '../TopbarSearchForm/TopbarSearchForm';
@@ -170,6 +171,8 @@ const TopbarDesktop = props => {
     />
   ) : null;
 
+  const cartLinkMaybe = authenticatedOnClientSide ? <CartLink className={css.topbarLink} /> : null;
+
   const signupLinkMaybe = isAuthenticatedOrJustHydrated ? null : <SignupLink />;
   const loginLinkMaybe = isAuthenticatedOrJustHydrated ? null : <LoginLink />;
 
@@ -211,6 +214,7 @@ const TopbarDesktop = props => {
       />
 
       {inboxLinkMaybe}
+      {cartLinkMaybe}
       {profileMenuMaybe}
       {signupLinkMaybe}
       {loginLinkMaybe}

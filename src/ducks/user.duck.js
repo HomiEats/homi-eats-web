@@ -12,6 +12,7 @@ import {
 
 import { authInfo } from './auth.duck';
 import { updateStripeConnectAccount } from './stripeConnectAccount.duck';
+import { loadCartFromLocalStorage, setCart } from './cart.duck';
 
 // ================ Helper Functions ================ //
 
@@ -198,6 +199,11 @@ const fetchCurrentUserPayloadCreator = (options, thunkAPI) => {
     }),
   };
 
+  if (!isAuthenticated && typeof window !== 'undefined') {
+    // Cart loading is now handled by the cart duck
+    dispatch(loadCartFromLocalStorage());
+  }
+
   return sdk.currentUser
     .show(parameters)
     .then(response => {
@@ -210,6 +216,12 @@ const fetchCurrentUserPayloadCreator = (options, thunkAPI) => {
       // Save stripeAccount to store.stripe.stripeAccount if it exists
       if (currentUser.stripeAccount) {
         dispatch(updateStripeConnectAccount(currentUser.stripeAccount));
+      }
+
+      const cartMaybe = currentUser.attributes.profile?.privateData?.cart;
+
+      if (cartMaybe) {
+        dispatch(setCart({ ...cartMaybe }));
       }
 
       // set current user id to the logger

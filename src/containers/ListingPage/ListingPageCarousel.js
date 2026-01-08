@@ -69,6 +69,7 @@ import {
   setInitialValues,
   fetchTimeSlots,
   fetchTransactionLineItems,
+  resetLineItems,
 } from './ListingPage.duck';
 
 import {
@@ -82,6 +83,7 @@ import {
   handleNavigateToRequestQuotePage,
   handleSubmit,
   priceForSchemaMaybe,
+  handleAddToCart,
 } from './ListingPage.shared';
 import ActionBarMaybe from './ActionBarMaybe';
 import SectionTextMaybe from './SectionTextMaybe';
@@ -92,6 +94,7 @@ import SectionGallery from './SectionGallery';
 import CustomListingFields from './CustomListingFields';
 
 import css from './ListingPage.module.css';
+import useAddOrUpdateToCart from '../../hooks/useAddOrUpdateToCart.js';
 
 const MIN_LENGTH_FOR_LONG_WORDS_IN_TITLE = 16;
 
@@ -129,8 +132,16 @@ export const ListingPageComponent = props => {
     config,
     routeConfiguration,
     showOwnListingsOnly,
+    onResetLineItems,
     ...restOfProps
   } = props;
+
+  const {
+    addOrUpdateToCart,
+    addOrUpdateToCartInProgress,
+    addOrUpdateToCartError,
+    cart,
+  } = useAddOrUpdateToCart();
 
   const listingConfig = config.listing;
   const listingId = new UUID(rawParams.id);
@@ -278,25 +289,26 @@ export const ListingPageComponent = props => {
     ...commonParams,
     getListing,
   });
-  const onSubmit = handleSubmit({
-    ...commonParams,
-    currentUser,
-    callSetInitialValues,
-    getListing,
-    onInitializeCardPaymentData,
-  });
 
-  const handleOrderSubmit = values => {
-    const isCurrentlyClosed = currentListing.attributes.state === LISTING_STATE_CLOSED;
-    if (isOwnListing || isCurrentlyClosed) {
-      window.scrollTo(0, 0);
-    } else if (isNegotiation && unitType === REQUEST) {
-      onNavigateToMakeOfferPage(values);
-    } else if (isNegotiation && unitType === OFFER) {
-      onNavigateToRequestQuotePage(values);
-    } else {
-      onSubmit(values);
-    }
+  const onSubmit = values => {
+    return handleSubmit({
+      ...commonParams,
+      currentUser,
+      callSetInitialValues,
+      getListing,
+      onInitializeCardPaymentData,
+    })({
+      ...values,
+      orderedProducts: {
+        authorId: currentAuthor.id.uuid,
+        deliveryMethod: values.deliveryMethod,
+        listings: {
+          [listingId.uuid]: {
+            quantity: values.quantity,
+          },
+        },
+      },
+    });
   };
 
   const facebookImages = listingImages(currentListing, 'facebook');
@@ -324,6 +336,44 @@ export const ListingPageComponent = props => {
   const availabilityMaybe = schemaAvailability ? { availability: schemaAvailability } : {};
   const noIndexMaybe =
     currentListing.attributes.state === LISTING_STATE_CLOSED ? { noIndex: true } : {};
+
+  const preventOrderSubmit = fn => {
+    const isCurrentlyClosed = currentListing.attributes.state === LISTING_STATE_CLOSED;
+    if (isOwnListing || isCurrentlyClosed) {
+      window.scrollTo(0, 0);
+    } else {
+      return fn();
+    }
+  };
+
+  const handleOrderSubmit = values => preventOrderSubmit(() => onSubmit(values));
+
+  // Cart functionality – add this within the component but before the return statement
+  const onAddOrUpdateToCart = values =>
+    preventOrderSubmit(() => {
+      if (values.quantity === 0) {
+        onResetLineItems();
+      }
+
+      return handleAddToCart({
+        ...commonParams,
+        location,
+        currentUser,
+        addOrUpdateToCart,
+        listingId: listingId.uuid,
+        authorId: currentAuthor.id.uuid,
+        shouldSaveDefaultDeliveryAddress: true,
+      })(values);
+    });
+
+  const cartProps = {
+    onAddOrUpdateToCart,
+    cart,
+    addOrUpdateToCartInProgress,
+    addOrUpdateToCartError,
+    authorId: ensuredAuthor.id,
+    listingId: listingId,
+  };
 
   return (
     <Page
@@ -458,6 +508,8 @@ export const ListingPageComponent = props => {
               dayCountAvailableForBooking={config.stripe.dayCountAvailableForBooking}
               marketplaceName={config.marketplaceName}
               showListingImage={showListingImage}
+              cartProps={cartProps}
+              showAuthor={true}
             />
           </div>
         </div>
@@ -617,6 +669,7 @@ const mapDispatchToProps = dispatch => ({
   onInitializeCardPaymentData: () => dispatch(initializeCardPaymentData()),
   onFetchTimeSlots: (listingId, start, end, timeZone, options) =>
     dispatch(fetchTimeSlots(listingId, start, end, timeZone, options)), // for OrderPanel
+  onResetLineItems: () => dispatch(resetLineItems()),
 });
 
 // Note: it is important that the withRouter HOC is **outside** the

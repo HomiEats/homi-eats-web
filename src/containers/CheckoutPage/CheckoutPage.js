@@ -41,12 +41,15 @@ import {
   confirmPayment,
   sendMessage,
   initiateInquiryWithoutPayment,
+  confirmStockThunk,
 } from './CheckoutPage.duck';
 
 import CheckoutPageWithPayment, {
   loadInitialDataForStripePayments,
 } from './CheckoutPageWithPayment';
 import CheckoutPageWithInquiryProcess from './CheckoutPageWithInquiryProcess';
+import { getMarketplaceEntities } from '../../ducks/marketplaceData.duck';
+import { removeAuthorWithDeliveryMethodFromCart } from '../../ducks/cart.duck';
 
 const STORAGE_KEY = 'CheckoutPage';
 
@@ -81,6 +84,7 @@ const EnhancedCheckoutPage = props => {
       fetchSpeculatedTransaction,
       fetchStripeCustomer,
     } = props;
+
     const initialData = { orderData, listing, transaction };
     const data = handlePageData(initialData, STORAGE_KEY, history);
     setPageData(data || {});
@@ -220,16 +224,25 @@ const mapStateToProps = state => {
     initiateInquiryError,
     initiateOrderError,
     confirmPaymentError,
+    queryTransactionListingsInProgress,
+    queryTransactionListingsError,
+    queryTransactionListingsIds,
   } = state.CheckoutPage;
   const { currentUser } = state.user;
   const { confirmCardPaymentError, paymentIntent, retrievePaymentIntentError } = state.stripe;
+  const listings = getMarketplaceEntities(
+    state,
+    queryTransactionListingsIds.map(id => ({ id, type: 'listing' }))
+  );
+
   return {
     scrollingDisabled: isScrollingDisabled(state),
     currentUser,
     stripeCustomerFetched,
     orderData,
-    speculateTransactionInProgress,
-    speculateTransactionError,
+    speculateTransactionInProgress:
+      speculateTransactionInProgress || queryTransactionListingsInProgress,
+    speculateTransactionError: speculateTransactionError || queryTransactionListingsError,
     speculatedTransaction,
     isClockInSync,
     transaction,
@@ -240,6 +253,7 @@ const mapStateToProps = state => {
     confirmPaymentError,
     paymentIntent,
     retrievePaymentIntentError,
+    listings,
   };
 };
 
@@ -259,6 +273,9 @@ const mapDispatchToProps = dispatch => ({
   onSendMessage: params => dispatch(sendMessage(params)),
   onSavePaymentMethod: (stripeCustomer, stripePaymentMethodId) =>
     dispatch(savePaymentMethod(stripeCustomer, stripePaymentMethodId)),
+  onConfirmStock: transactionId => dispatch(confirmStockThunk(transactionId)),
+  onClearCart: (authorId, deliveryMethod) =>
+    dispatch(removeAuthorWithDeliveryMethodFromCart(authorId, deliveryMethod)),
 });
 
 const CheckoutPage = compose(
@@ -273,7 +290,6 @@ CheckoutPage.setInitialValues = (initialValues, saveToSessionStorage = false) =>
     const { listing, orderData } = initialValues;
     storeData(orderData, listing, null, STORAGE_KEY);
   }
-
   return setInitialValues(initialValues);
 };
 

@@ -3,6 +3,7 @@ const https = require('https');
 const Decimal = require('decimal.js');
 const log = require('../log');
 const sharetribeSdk = require('sharetribe-flex-sdk');
+const sharetribeIntegrationSdk = require('sharetribe-flex-integration-sdk');
 
 const CLIENT_ID = process.env.REACT_APP_SHARETRIBE_SDK_CLIENT_ID;
 const CLIENT_SECRET = process.env.SHARETRIBE_SDK_CLIENT_SECRET;
@@ -10,6 +11,8 @@ const USING_SSL = process.env.REACT_APP_SHARETRIBE_USING_SSL === 'true';
 const TRANSIT_VERBOSE = process.env.REACT_APP_SHARETRIBE_SDK_TRANSIT_VERBOSE === 'true';
 const MAX_SOCKETS = process.env.MAX_SOCKETS;
 const MAX_SOCKETS_DEFAULT = 10;
+const INTEGRATION_SDK_CLIENT_ID = process.env.SHARETRIBE_INTEGRATION_SDK_CLIENT_ID;
+const INTEGRATION_SDK_CLIENT_SECRET = process.env.SHARETRIBE_INTEGRATION_SDK_CLIENT_SECRET;
 
 const BASE_URL = process.env.REACT_APP_SHARETRIBE_SDK_BASE_URL;
 const ASSET_CDN_BASE_URL = process.env.REACT_APP_SHARETRIBE_SDK_ASSET_CDN_BASE_URL;
@@ -233,3 +236,9 @@ exports.fetchAccessControlAsset = sdk => {
       return response;
     });
 };
+
+exports.getIntegrationSdk = () =>
+  sharetribeIntegrationSdk.createInstance({
+    clientId: INTEGRATION_SDK_CLIENT_ID,
+    clientSecret: INTEGRATION_SDK_CLIENT_SECRET,
+  });
