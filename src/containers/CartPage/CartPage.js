@@ -95,6 +95,7 @@ const CartPage = props => {
       routes: routeConfiguration,
     })({
       fromCart: true,
+      deliveryMethod,
       orderedProducts: {
         authorId: firstListing.author.id.uuid,
         deliveryMethod: deliveryMethod,
