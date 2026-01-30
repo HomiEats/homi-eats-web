@@ -30,6 +30,36 @@ import Routes from './routing/Routes';
 
 // Sharetribe Web Template uses English translations as default translations.
 import defaultMessages from './translations/en.json';
+import frenchMessages from './translations/fr.json';
+import spanishMessages from './translations/es.json';
+
+// Language storage key - must match LanguageSwitcher component
+export const LANGUAGE_STORAGE_KEY = 'homiEats_language';
+export const DEFAULT_LANGUAGE = 'en';
+
+// Get user's preferred language from localStorage or default to English
+export const getUserLanguage = () => {
+  if (typeof window !== 'undefined') {
+    const savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (savedLanguage && ['en', 'fr', 'es'].includes(savedLanguage)) {
+      return savedLanguage;
+    }
+  }
+  return DEFAULT_LANGUAGE;
+};
+
+// Get messages for the selected language
+const getMessagesForLanguage = lang => {
+  switch (lang) {
+    case 'fr':
+      return frenchMessages;
+    case 'es':
+      return spanishMessages;
+    case 'en':
+    default:
+      return {};
+  }
+};
 
 // If you want to change the language of default (fallback) translations,
 // change the imports to match the wanted locale:
@@ -68,7 +98,8 @@ import defaultMessages from './translations/en.json';
 //
 // I.e. remove "const messagesInLocale" and add import for the correct locale:
 // import messagesInLocale from './translations/fr.json';
-const messagesInLocale = {};
+const userLanguage = getUserLanguage();
+const messagesInLocale = getMessagesForLanguage(userLanguage);
 
 // If translation key is missing from `messagesInLocale` (e.g. fr.json),
 // corresponding key will be added to messages from `defaultMessages` (en.json)
@@ -234,7 +265,7 @@ export const ClientApp = props => {
     return (
       <MaintenanceModeError
         locale={appConfig.localization.locale}
-        messages={{ ...localeMessages, ...hostedTranslations }}
+        messages={{ ...localeMessages }}
       />
     );
   }
@@ -253,7 +284,7 @@ export const ClientApp = props => {
     <Configurations appConfig={appConfig}>
       <IntlProvider
         locale={appConfig.localization.locale}
-        messages={{ ...localeMessages, ...hostedTranslations }}
+        messages={{ ...localeMessages }}
         textComponent="span"
       >
         <Provider store={store}>
@@ -290,7 +321,7 @@ export const ServerApp = props => {
     return (
       <MaintenanceModeError
         locale={appConfig.localization.locale}
-        messages={{ ...localeMessages, ...hostedTranslations }}
+        messages={{ ...localeMessages }}
         helmetContext={helmetContext}
       />
     );
@@ -300,7 +331,7 @@ export const ServerApp = props => {
     <Configurations appConfig={appConfig}>
       <IntlProvider
         locale={appConfig.localization.locale}
-        messages={{ ...localeMessages, ...hostedTranslations }}
+        messages={{ ...localeMessages }}
         textComponent="span"
       >
         <Provider store={store}>

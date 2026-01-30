@@ -1424,5 +1424,7 @@
   "CartCard.outOfStock": "The quantity is out of stock. Please enter a valid quantity.",
   "CartCard.proceedCheckout": "Proceed to checkout",
   "CheckoutPage.orderSummary": "Order Summary",
-  "CheckoutPage.orderFrom": "Order from "
+  "CheckoutPage.orderFrom": "Order from",
+  "Footer.slogan": "Fresh from the house, made with passion",
+  "Footer.copyright": "© 2025 HomiEats. All rights reserved."
 }

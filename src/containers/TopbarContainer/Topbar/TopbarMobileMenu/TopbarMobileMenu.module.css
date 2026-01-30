@@ -184,3 +184,91 @@
   width: 100%;
   height: 124px;
 }
+
+.langLabel {
+  /* Font */
+  font-weight: var(--fontWeightBlack);
+  font-size: 24px;
+  line-height: 24px;
+  color: var(--marketplaceColor);
+  padding: 3px 0 3px 0;
+  margin-bottom: 1px;
+  margin-top: 16px;
+
+  @media (--viewportMedium) {
+    font-size: 40px;
+    line-height: 56px;
+    padding: 5px 0 3px 0;
+    /* x * 8px */
+    margin-top: 24px;
+  }
+}
+
+.arrow {
+  margin-left: 8px;
+  margin-bottom: 7px;
+  width: 15px;
+  height: 15px;
+  stroke: var(--marketplaceColor);
+}
+
+.dropdownContent {
+  margin-left: 20px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  & .dropdownItem {
+    font-size: 20px;
+    line-height: 24px;
+    color: #fff;
+    padding: 3px 0 3px 0;
+    margin-bottom: 20px;
+    margin-top: 64px;
+  }
+}
+
+.languageOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  width: 100%;
+  text-align: left;
+  font-size: 18px;
+  line-height: 24px;
+  color: var(--marketplaceColor);
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.activeLanguage {
+  font-weight: var(--fontWeightBold);
+  color: var(--marketplaceColor);
+}
+
+.languageFlag {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.languageLabel {
+  flex: 1;
+}
+
+.checkmark {
+  color: var(--marketplaceColor);
+  font-weight: var(--fontWeightBold);
+  font-size: 20px;
+}

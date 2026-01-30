@@ -15,6 +15,7 @@ import SectionHero from './SectionHero';
 // TODO: alternatively, we could consider more in-place way of theming components
 import css from './SectionBuilder.module.css';
 import SectionFooter from './SectionFooter';
+import { getUserLanguage } from '../../../app';
 
 // These are shared classes.
 // Use these to have consistent styles between different section components
@@ -83,6 +84,7 @@ const defaultSectionComponents = {
 const SectionBuilder = props => {
   const { sections = [], options } = props;
   const { sectionComponents = {}, isInsideContainer, ...otherOption } = options || {};
+  const lang = getUserLanguage();
 
   // If there's no sections, we can't render the correct section component
   if (!sections || sections.length === 0) {
@@ -113,9 +115,18 @@ const SectionBuilder = props => {
     }
   };
 
+  const filteredSections = sections.filter(elm => {
+    // Keep sections without sectionId or footer section
+    if (!elm.sectionId || elm.sectionId === 'footer') {
+      return true;
+    }
+    // Filter other sections by language suffix
+    return elm.sectionId.includes(`-${lang}`);
+  });
+
   return (
     <>
-      {sections.map((section, index) => {
+      {filteredSections.map((section, index) => {
         const Section = getComponent(section.sectionType);
         // If the default "dark" theme should be applied (when text color is white).
         // By default, this information is stored to customAppearance field

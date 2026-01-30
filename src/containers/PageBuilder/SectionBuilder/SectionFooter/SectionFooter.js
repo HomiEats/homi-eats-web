@@ -7,6 +7,7 @@ import BlockBuilder from '../../BlockBuilder';
 
 import SectionContainer from '../SectionContainer';
 import css from './SectionFooter.module.css';
+import { useIntl } from 'react-intl';
 
 // The number of columns (numberOfColumns) affects styling
 
@@ -70,15 +71,16 @@ const getGridCss = numberOfColumns => {
  * @returns {JSX.Element} Section for article content
  */
 const SectionFooter = props => {
+  const intl = useIntl();
   const {
     sectionId,
     className,
     rootClassName,
     numberOfColumns = 1,
     socialMediaLinks = [],
-    slogan,
+    slogan: sL,
     appearance,
-    copyright,
+    copyright: cR,
     blocks = [],
     options,
     linkLogoToExternalSite,
@@ -103,6 +105,15 @@ const SectionFooter = props => {
   const logoLayout = isMobileLayout ? 'mobile' : 'desktop';
 
   // use block builder instead of mapping blocks manually
+
+  const slogan = {
+    ...sL,
+    content: intl.formatMessage({ id: 'Footer.slogan' }),
+  };
+  const copyright = {
+    ...cR,
+    content: intl.formatMessage({ id: 'Footer.copyright' }),
+  };
 
   return (
     <SectionContainer

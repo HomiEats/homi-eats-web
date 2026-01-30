@@ -1424,5 +1424,7 @@
   "CartCard.outOfStock": "La quantité est en rupture de stock. Veuillez entrer une quantité valide.",
   "CartCard.proceedCheckout": "Passer à la caisse",
   "CheckoutPage.orderSummary": "Résumé de la commande",
-  "CheckoutPage.orderFrom": "Commande de "
+  "CheckoutPage.orderFrom": "Commande de ",
+  "Footer.slogan": "Fraîchement sorti de la maison, fait avec passion",
+  "Footer.copyright": "© 2025 HomiEats. Tous droits réservés."
 }
